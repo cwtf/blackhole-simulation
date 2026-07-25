@@ -54,4 +54,9 @@ next-env.d.ts
 # rust
 physics-engine/target
 physics-engine/pkg
+# wiki-globe fork: the rules above miss where cargo and wasm-pack actually
+# write when a crate is built on its own rather than through the workspace —
+# these are the paths `bun run clean` removes.
+physics-engine/*/target
+physics-engine/*/pkg
 /public/wasm

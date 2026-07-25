@@ -7,6 +7,8 @@ import { ChevronUp } from "lucide-react";
 import { WebGLCanvas } from "@/components/canvas/WebGLCanvas";
 import { WebGPUCanvas } from "@/components/canvas/WebGPUCanvas";
 import ErrorBoundary from "@/components/debug/ErrorBoundary";
+import { BackToGlobe } from "@/components/fork/BackToGlobe";
+import { DebugHooks } from "@/components/fork/DebugHooks";
 import { IdentityHUD } from "@/components/ui/IdentityHUD";
 import { CompatibilityHUD } from "@/components/ui/CompatibilityHUD";
 import { useHardwareSupport } from "@/hooks/useHardwareSupport";
@@ -226,6 +228,9 @@ const App = () => {
         (hardwareSupport.isReady && !hardwareSupport.webgl)) && (
         <CompatibilityHUD />
       )}
+
+      <BackToGlobe />
+      <DebugHooks />
 
       <ErrorBoundary>
         {params.features?.spacetimeVisualization ? (
@@ -479,15 +484,16 @@ BibTeX:
   author = {Singh, M. P.},
   title = {Interactive Kerr Metric Black Hole Simulation Engine},
   year = {2026},
-  publisher = {Vercel/OpenScience},
-  journal = {Real-time Relativistic Optics},
-  url = {https://blackhole-simulation.vercel.app}
+  howpublished = {Software, MIT licence},
+  note = {Original: https://github.com/steeltroops-ai/blackhole-simulation;
+          this deployment: https://wikiglo.be/blackhole}
 }
               `}
             </pre>
             <p>
-              APA: Singh, M. P. (2026). <i>Interactive Black Hole Simulation</i>
-              . Retrieved from https://blackhole-simulation.vercel.app
+              APA: Singh, M. P. (2026). <i>Interactive Black Hole Simulation</i>{" "}
+              [Computer software]. Retrieved from
+              https://github.com/steeltroops-ai/blackhole-simulation
             </p>
           </div>
 
@@ -775,7 +781,9 @@ BibTeX:
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="absolute top-0 left-0 w-full p-4 md:p-8 flex justify-between items-start z-50 pointer-events-none"
+              /* pt is enlarged relative to upstream to clear the fork's
+                 persistent "back to Wiki Globe" pill in the same corner. */
+              className="absolute top-0 left-0 w-full p-4 pt-14 md:p-8 md:pt-16 flex justify-between items-start z-50 pointer-events-none"
             >
               {/* SLEEK IDENTITY HUD */}
               <IdentityHUD

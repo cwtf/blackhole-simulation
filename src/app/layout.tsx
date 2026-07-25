@@ -2,7 +2,15 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 
 import ErrorBoundary from "@/components/debug/ErrorBoundary";
+import { CrossOriginIsolation } from "@/components/fork/CrossOriginIsolation";
+import { SITE_URL, asset } from "@/configs/deployment.config";
 import "./globals.css";
+
+// wiki-globe fork: upstream's SEO identity (canonical URLs, Search Console
+// token, citation URLs) points at blackhole-simulation.vercel.app. Publishing
+// that verbatim on wikiglo.be would claim another site's identity, so every
+// self-referential URL below resolves through SITE_URL instead. Authorship
+// credit to the upstream author is deliberately kept — see FORK.md.
 
 const inter = Inter({
   variable: "--font-inter",
@@ -21,7 +29,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://blackhole-simulation.vercel.app"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default:
       "Black Hole Simulation | Interactive Real-time Kerr Physics Engine",
@@ -69,8 +77,8 @@ export const metadata: Metadata = {
     title: "Black Hole Simulation | Interactive General Relativity",
     description:
       "Experience a physically accurate Kerr black hole simulation in real-time. Explore the event horizon, photon ring, and accretion disk.",
-    url: "https://blackhole-simulation.vercel.app",
-    siteName: "Black Hole Simulation",
+    url: SITE_URL,
+    siteName: "Wiki Globe — Black Hole Simulation",
     locale: "en_US",
     type: "website",
   },
@@ -96,23 +104,13 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: "https://blackhole-simulation.vercel.app",
+    canonical: SITE_URL,
     // languages: populated only when real translations exist at the cited URLs.
     // Misleading hreflang demotes ranking; strict empty policy until real i18n ships.
   },
-  // SEO env vars (set in Vercel project settings, never committed):
-  //   YANDEX_VERIFICATION_TOKEN  (Yandex Webmaster Tools)
-  //   BING_VERIFICATION_TOKEN    (Bing Webmaster Tools)
-  // See .mayank/seo/multi-engine-checklist.md for setup walkthrough.
-  verification: {
-    google: "vycsFH0oxZh3hYxinQ1JGOghyPymDAt4tkDFdKk-V7M",
-    ...(process.env.YANDEX_VERIFICATION_TOKEN && {
-      yandex: process.env.YANDEX_VERIFICATION_TOKEN,
-    }),
-    ...(process.env.BING_VERIFICATION_TOKEN && {
-      other: { "msvalidate.01": process.env.BING_VERIFICATION_TOKEN },
-    }),
-  },
+  // Upstream's Search Console / IndexNow ownership proofs were removed in this
+  // fork: they verify blackhole-simulation.vercel.app, not wikiglo.be. Add
+  // wikiglo.be's own tokens here if the domain is ever registered with them.
   appleWebApp: {
     capable: true,
     title: "Black Hole Lab",
@@ -126,9 +124,9 @@ export const metadata: Metadata = {
     "msapplication-tap-highlight": "no",
   },
   icons: {
-    icon: "/brand-logo.png",
-    shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.jpg",
+    icon: asset("/brand-logo.png"),
+    shortcut: asset("/favicon.ico"),
+    apple: asset("/apple-touch-icon.jpg"),
   },
 };
 
@@ -185,7 +183,7 @@ const scholarlyArticleSchema = {
     name: "Mayank Pratap Singh",
   },
   keywords: "Kerr Metric, General Relativity, Black Hole, Ray Tracing, WebGPU",
-  url: "https://blackhole-simulation.vercel.app#physics-guide",
+  url: `${SITE_URL}#physics-guide`,
   citation: [
     "Bardeen, J. M. (1973). Timelike and null geodesics in the Kerr metric.",
     "Luminet, J. P. (1979). Image of a spherical black hole with thin accretion disk.",
@@ -199,7 +197,7 @@ const techArticleSchema = {
   "@type": "TechArticle",
   headline: "Visualizing the Kerr Metric: A Real-Time Simulation",
   alternativeHeadline: "Interactive Black Hole Physics Engine",
-  image: "https://blackhole-simulation.vercel.app/opengraph-image.jpg",
+  image: `${SITE_URL}/opengraph-image.jpg`,
   author: {
     "@type": "Person",
     name: "Mayank Pratap Singh",
@@ -216,7 +214,7 @@ const techArticleSchema = {
     name: "Mayank Pratap Singh",
     logo: {
       "@type": "ImageObject",
-      url: "https://blackhole-simulation.vercel.app/brand-logo.png",
+      url: `${SITE_URL}/brand-logo.png`,
     },
   },
   description:
@@ -289,16 +287,9 @@ const websiteSchema = {
   "@type": "WebSite",
   name: "Black Hole Simulation",
   alternateName: ["Blackhole Simulation Lab", "Kerr Metric Simulator"],
-  url: "https://blackhole-simulation.vercel.app",
-  potentialAction: {
-    "@type": "SearchAction",
-    target: {
-      "@type": "EntryPoint",
-      urlTemplate:
-        "https://blackhole-simulation.vercel.app/?q={search_term_string}",
-    },
-    "query-input": "required name=search_term_string",
-  },
+  url: SITE_URL,
+  // No SearchAction: the sub-app has no search surface. Upstream declared one
+  // against its own domain; claiming it here would be a false capability.
 };
 
 // SOURCE: schema.org/FAQPage. Questions answered on the page itself; verify the page renders these.
@@ -349,20 +340,20 @@ const breadcrumbSchema = {
     {
       "@type": "ListItem",
       position: 1,
-      name: "Home",
-      item: "https://blackhole-simulation.vercel.app",
+      name: "Wiki Globe",
+      item: "https://wikiglo.be/",
     },
     {
       "@type": "ListItem",
       position: 2,
-      name: "Simulation",
-      item: "https://blackhole-simulation.vercel.app",
+      name: "Black Hole Simulation",
+      item: SITE_URL,
     },
     {
       "@type": "ListItem",
       position: 3,
       name: "Physics Documentation",
-      item: "https://blackhole-simulation.vercel.app#physics-guide",
+      item: `${SITE_URL}#physics-guide`,
     },
   ],
 };
@@ -662,6 +653,7 @@ export default function RootLayout({
         className={`${inter.variable} antialiased bg-black text-white`}
         suppressHydrationWarning
       >
+        <CrossOriginIsolation />
         <ErrorBoundary>{children}</ErrorBoundary>
       </body>
     </html>

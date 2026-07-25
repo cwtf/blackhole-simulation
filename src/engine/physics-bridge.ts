@@ -31,6 +31,13 @@ export class PhysicsBridge {
   private seqView: Int32Array | null = null;
   private lastSeenSequence: number = -1;
 
+  // wiki-globe fork: which transport actually came up. On GitHub Pages the
+  // first load of a session is never cross-origin isolated (the COI service
+  // worker only controls the page from the next navigation on), so the
+  // main-thread path is a routine state, not an error — and being able to
+  // read it back is what makes that verifiable from the console.
+  private transport: "unknown" | "worker-sab" | "main-thread" = "unknown";
+
   public async initialize(): Promise<void> {
     if (this.initializationPromise) return this.initializationPromise;
 
@@ -48,6 +55,8 @@ export class PhysicsBridge {
 
         // Setup SharedArrayBuffer (SAB) for Zero-Copy Sync
         // 2MB is enough for headers + several 512x512 LUTs
+        // Throws ReferenceError when the document is not cross-origin
+        // isolated; the catch below is the supported fallback, not a bug path.
         this.sab = new SharedArrayBuffer(2 * 1024 * 1024);
         this.initializeViews();
 
@@ -64,6 +73,7 @@ export class PhysicsBridge {
               // eslint-disable-next-line no-console
               console.log("PhysicsBridge: Worker Ready.");
               this.workerReady = true;
+              this.transport = "worker-sab";
               resolve();
             } else if (e.data.type === "ERROR") {
               reject(e.data.error);
@@ -72,13 +82,30 @@ export class PhysicsBridge {
         });
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.error("PhysicsBridge Fallback: Loading in main thread...", err);
+        console.warn(
+          "PhysicsBridge: no SharedArrayBuffer, running single-threaded on the main thread.",
+          err,
+        );
+
+        // wiki-globe fork: the worker is constructed before the SAB, so a SAB
+        // failure leaves a live worker with no channel to it. Tear it down
+        // rather than leaking a thread for the lifetime of the page, and null
+        // the handle so tick()'s worker branch cannot be taken with sab=null.
+        if (this.worker) {
+          this.worker.terminate();
+          this.worker = null;
+          this.workerReady = false;
+        }
+        this.sab = null;
+        this.seqView = null;
+
         // Fallback for environments where workers or SAB are disabled
         const wasmModuleWrap = await import("blackhole-physics");
         const wasmModule = await wasmModuleWrap.default();
         this.wasmMemory = wasmModule.memory;
         this.engine = new wasmModuleWrap.PhysicsEngine(1.0, 0.9);
         this.initializeFallbackViews();
+        this.transport = "main-thread";
       }
     })();
 
@@ -410,6 +437,16 @@ export class PhysicsBridge {
   /** Current spin getter for fallback calculations. */
   public getSpin(): number {
     return this.currentSpin;
+  }
+
+  /**
+   * wiki-globe fork: which physics transport is live —
+   * `"worker-sab"` (cross-origin isolated, zero-copy) or `"main-thread"`
+   * (no SharedArrayBuffer). Surfaced through `window.__bh` for the
+   * deployment check in the spec's §4.
+   */
+  public getTransport(): "unknown" | "worker-sab" | "main-thread" {
+    return this.transport;
   }
 }
 

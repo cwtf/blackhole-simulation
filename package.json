@@ -9,7 +9,6 @@
     "build": "bun run build:wasm && next build",
     "build:wasm": "cd physics-engine/gravitas-wasm && cross-env CARGO_BUILD_JOBS=1 wasm-pack build --target web --out-name blackhole_physics --out-dir ../../public/wasm",
     "watch:wasm": "cd physics-engine/gravitas-wasm && cross-env CARGO_BUILD_JOBS=1 cargo watch -i .gitignore -i \"pkg/*\" -s \"wasm-pack build --target web --out-name blackhole_physics --out-dir ../../public/wasm\"",
-    "build:vercel": "bash scripts/vercel-build.sh",
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write \"**/*.{js,ts,tsx,css,md,json}\"",
@@ -17,10 +16,8 @@
     "test": "vitest run",
     "physics:regress": "cd physics-engine && cargo test --release -p gravitas-core --test conservation --test photon_ring --test isco --test schwarzschild_degenerate --test near_extremal --test normalize",
     "seo:check": "bun scripts/seo-provenance.ts src/app/layout.tsx",
-    "seo:ping": "bun scripts/indexnow-ping.ts",
     "shader:check": "vitest run --config vitest.shader.config.ts",
     "shader:update-goldens": "bun scripts/update-goldens.ts",
-    "postinstall": "lefthook install",
     "clean": "rimraf .next node_modules physics-engine/target physics-engine/gravitas-wasm/pkg physics-engine/gravitas-core/target public/wasm"
   },
   "dependencies": {
