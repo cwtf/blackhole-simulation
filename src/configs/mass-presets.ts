@@ -47,9 +47,8 @@ export interface MassPreset {
   /**
    * Whether a prominent jet is expected for this object.
    *
-   * Spec §1.4 wants the jet toggle to default per preset: on for M87*, the
-   * archetypal jetted black hole; off for Sgr A*, which has no prominent jet,
-   * and for the stellar case. The user can always override.
+   * The generic stellar and M87-scale presets showcase jets by default, while
+   * the Sgr A*-scale preset keeps them off. The user can always override.
    */
   jetByDefault: boolean;
 }
@@ -60,7 +59,7 @@ export const MASS_PRESETS: MassPreset[] = [
     label: "Stellar (10 M☉)",
     solarMasses: 10,
     hint: "Tides are lethal far outside the horizon",
-    jetByDefault: false,
+    jetByDefault: true,
   },
   // Relabelled for §6.4: these two used to be called "Sgr A*" and "M87*",
   // but those names now belong to the cited entries in

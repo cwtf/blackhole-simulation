@@ -189,11 +189,11 @@ describe("presets", () => {
     expect(findPreset("no-such-preset")).toBe(MASS_PRESETS[0]);
   });
 
-  it("defaults the jet on only for M87*", () => {
-    // Spec §1.4: on for M87*, off for Sgr A* and the stellar case.
+  it("defaults the jet on for the initial and M87-scale presets", () => {
+    // Jets are visible on initial load and for the M87-scale preset.
     expect(findPreset("m87").jetByDefault).toBe(true);
     expect(findPreset("sgra").jetByDefault).toBe(false);
-    expect(findPreset("stellar").jetByDefault).toBe(false);
+    expect(findPreset("stellar").jetByDefault).toBe(true);
   });
 });
 
