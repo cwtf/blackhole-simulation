@@ -181,7 +181,8 @@ describe("disk temperature", () => {
 });
 
 describe("presets", () => {
-  it("has a default that exists", () => {
+  it("defaults to the generic supermassive preset", () => {
+    expect(DEFAULT_MASS_PRESET).toBe("sgra");
     expect(findPreset(DEFAULT_MASS_PRESET).id).toBe(DEFAULT_MASS_PRESET);
   });
 
@@ -189,10 +190,9 @@ describe("presets", () => {
     expect(findPreset("no-such-preset")).toBe(MASS_PRESETS[0]);
   });
 
-  it("defaults the jet on for the initial and M87-scale presets", () => {
-    // Jets are visible on initial load and for the M87-scale preset.
+  it("defaults the jet on for generic presets", () => {
     expect(findPreset("m87").jetByDefault).toBe(true);
-    expect(findPreset("sgra").jetByDefault).toBe(false);
+    expect(findPreset("sgra").jetByDefault).toBe(true);
     expect(findPreset("stellar").jetByDefault).toBe(true);
   });
 });

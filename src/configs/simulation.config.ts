@@ -168,8 +168,7 @@ export const SIMULATION_CONFIG = {
   diskTemp: {
     // Peak effective temperature of the disk, in kelvin (the shader's radial
     // profile is normalised to peak at 1, so this is literally the hottest
-    // point). The default is the physical value for the default stellar-mass
-    // preset; selecting a mass preset or a real object overwrites it with
+    // point). Selecting a mass preset or a real object overwrites this with
     // that object's own peak temperature.
     //
     // Was 9500 K, which is a hot star, not an accretion disk — it produced the

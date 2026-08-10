@@ -47,8 +47,7 @@ export interface MassPreset {
   /**
    * Whether a prominent jet is expected for this object.
    *
-   * The generic stellar and M87-scale presets showcase jets by default, while
-   * the Sgr A*-scale preset keeps them off. The user can always override.
+   * Generic presets showcase jets by default. The user can always override.
    */
   jetByDefault: boolean;
 }
@@ -73,7 +72,7 @@ export const MASS_PRESETS: MassPreset[] = [
     label: "Supermassive (4×10⁶ M☉)",
     solarMasses: 4.154e6,
     hint: "Galactic-centre scale; survivable tides at the horizon",
-    jetByDefault: false,
+    jetByDefault: true,
   },
   {
     id: "m87",
@@ -84,7 +83,7 @@ export const MASS_PRESETS: MassPreset[] = [
   },
 ];
 
-export const DEFAULT_MASS_PRESET = "stellar";
+export const DEFAULT_MASS_PRESET = "sgra";
 
 export function findPreset(id: string): MassPreset {
   return MASS_PRESETS.find((p) => p.id === id) ?? MASS_PRESETS[0]!;

@@ -8,7 +8,7 @@ import { SimulatorApp } from "@/components/fork/SimulatorApp";
  * preselected. Nothing else changed in the move.
  *
  * No `initialObjectId` here on purpose: the bare route is the generic
- * simulator, which opens on the synthetic stellar-mass preset rather than
+ * simulator, which opens on the synthetic supermassive preset rather than
  * claiming to be any particular object.
  */
 export default function Page() {
