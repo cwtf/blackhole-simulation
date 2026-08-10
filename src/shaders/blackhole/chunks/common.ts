@@ -40,10 +40,9 @@ export const COMMON_CHUNK = `
   //
   // The four legs of the observer's orthonormal frame, resolved into this
   // shader's Cartesian axes on the CPU: .xyz is the spatial part, .w is the
-  // contravariant time component e_(a)^t. Free-look is already baked into the
-  // spatial legs, applied INSIDE the frame before it got here -- rotating the
-  // finished world-space ray instead would drag the aberration pattern around
-  // with the view.
+  // contravariant time component e_(a)^t. Free-look rotates the local look
+  // direction before it is lifted through these complete four-dimensional
+  // legs, preserving orthonormality and the aberration pattern.
   //
   // Every 1st-person ray is p = e0 + n.x*e1 + n.y*e2 + n.z*e3. Aberration and
   // the Doppler shift are consequences of that sum, never applied separately.
@@ -53,6 +52,7 @@ export const COMMON_CHUNK = `
   uniform vec4 u_fp_e1;
   uniform vec4 u_fp_e2;
   uniform vec4 u_fp_e3;
+  uniform vec4 u_fp_look;
 
   // The real Milky Way panorama (spec §6.2). u_sky_enabled is
   // 0 until the JPEG has been decoded and uploaded, and stays 0 if it fails --

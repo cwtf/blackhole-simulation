@@ -73,7 +73,7 @@ export class WebGLRenderer {
   /**
    * The rider's orthonormal frame for the 1st-person view
    * (spec §1.6), already resolved into this shader's Cartesian axes with
-   * free-look folded into the spatial legs. Null means 3rd person.
+   * free-look kept as a local-space quaternion. Null means 3rd person.
    *
    * Each leg is `[x, y, z, e^t]`.
    */
@@ -86,6 +86,7 @@ export class WebGLRenderer {
     e1: [number, number, number, number];
     e2: [number, number, number, number];
     e3: [number, number, number, number];
+    look: [number, number, number, number];
   } | null = null;
 
   constructor() {}
@@ -442,12 +443,20 @@ export class WebGLRenderer {
       this.uniformBatcher.set4f("u_fp_e1", fp.e1[0], fp.e1[1], fp.e1[2], fp.e1[3]);
       this.uniformBatcher.set4f("u_fp_e2", fp.e2[0], fp.e2[1], fp.e2[2], fp.e2[3]);
       this.uniformBatcher.set4f("u_fp_e3", fp.e3[0], fp.e3[1], fp.e3[2], fp.e3[3]);
+      this.uniformBatcher.set4f(
+        "u_fp_look",
+        fp.look[0],
+        fp.look[1],
+        fp.look[2],
+        fp.look[3],
+      );
     } else {
       this.uniformBatcher.set3f("u_fp_pos", 0.0, 0.0, 0.0);
       this.uniformBatcher.set4f("u_fp_e0", 0.0, 0.0, 0.0, 1.0);
       this.uniformBatcher.set4f("u_fp_e1", 1.0, 0.0, 0.0, 0.0);
       this.uniformBatcher.set4f("u_fp_e2", 0.0, 1.0, 0.0, 0.0);
       this.uniformBatcher.set4f("u_fp_e3", 0.0, 0.0, 1.0, 0.0);
+      this.uniformBatcher.set4f("u_fp_look", 0.0, 0.0, 0.0, 1.0);
     }
 
     // Set Common Uniforms

@@ -92,3 +92,21 @@ describe("first-person field of view", () => {
     expect(fragmentShaderSource).toContain("qrot(u_camQuat, normalize(vec3(uv, 1.2)))");
   });
 });
+
+describe("first-person free-look", () => {
+  it("rotates the local ray before lifting it through the tetrad", () => {
+    expect(fragmentShaderSource).toContain("uniform vec4 u_fp_look;");
+    expect(fragmentShaderSource).toContain(
+      "vec3 n = qrot(u_fp_look, normalize(vec3(uv, FP_FOCAL_LENGTH)))",
+    );
+  });
+
+  it("uses the same rotated direction for aberration and frequency shift", () => {
+    expect(fragmentShaderSource).toContain(
+      "u_fp_e0.xyz + n.x * u_fp_e1.xyz + n.y * u_fp_e2.xyz + n.z * u_fp_e3.xyz",
+    );
+    expect(fragmentShaderSource).toContain(
+      "u_fp_e0.w + n.x * u_fp_e1.w + n.y * u_fp_e2.w + n.z * u_fp_e3.w",
+    );
+  });
+});

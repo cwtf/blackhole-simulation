@@ -79,7 +79,10 @@ void main() {
         // is 88% black. No focal length fixes that one — it is the correct
         // view for that trajectory. Drop from 20M for the classic 42 degrees.
         const float FP_FOCAL_LENGTH = 0.45;
-        vec3 n = normalize(vec3(uv, FP_FOCAL_LENGTH));
+        // Rotate in the rider's local frame before lifting the ray through the
+        // complete tetrad. Rotating only world-space spatial components would
+        // break orthonormality and distort aberration during free-look.
+        vec3 n = qrot(u_fp_look, normalize(vec3(uv, FP_FOCAL_LENGTH)));
         ro = u_fp_pos;
         rd = normalize(u_fp_e0.xyz + n.x * u_fp_e1.xyz + n.y * u_fp_e2.xyz + n.z * u_fp_e3.xyz);
         // Contravariant p^t from the same legs; the conserved energy follows.

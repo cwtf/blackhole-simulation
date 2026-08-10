@@ -6,7 +6,6 @@ import { physicsBridge, type ApsidesSolution } from "@/engine/physics-bridge";
 import { orderApsides, type ApsisPair } from "@/physics/apsides";
 import {
   orientFrame,
-  rotateByQuaternion,
   tetradToCartesian,
   type CartesianLeg,
 } from "@/physics/first-person";
@@ -82,8 +81,8 @@ export type ViewMode = "third" | "first";
  * The rider's frame, resolved for the renderer.
  *
  * Legs are `[x, y, z, e^t]`: spatial part in the shader's Cartesian axes with
- * free-look already folded in, plus the contravariant time component that
- * carries the frequency shift.
+ * the contravariant time component that carries the frequency shift. Free-look
+ * remains a local-space rotation so it cannot break tetrad orthonormality.
  */
 export interface FirstPersonFrame {
   pos: [number, number, number];
@@ -91,6 +90,7 @@ export interface FirstPersonFrame {
   e1: [number, number, number, number];
   e2: [number, number, number, number];
   e3: [number, number, number, number];
+  look: [number, number, number, number];
 }
 
 export interface UseTestObject {
@@ -371,20 +371,16 @@ export function useTestObject(
       ridePoint.theta,
       ridePoint.phi,
     );
-    // Free-look rotates the spatial legs of the frame, i.e. it is applied
-    // INSIDE the frame before the boost is combined in. Rotating the finished
-    // world-space ray instead would carry the aberration pattern around with
-    // the view (spec §5).
-    const q = quaternionFromYawPitch(look.yaw, look.pitch);
-    const rot = (
+    const resolve = (
       leg: CartesianLeg,
       sign: number,
     ): [number, number, number, number] => {
-      const s = rotateByQuaternion(
-        [leg.spatial[0] * sign, leg.spatial[1] * sign, leg.spatial[2] * sign],
-        q,
-      );
-      return [s[0], s[1], s[2], leg.time * sign];
+      return [
+        leg.spatial[0] * sign,
+        leg.spatial[1] * sign,
+        leg.spatial[2] * sign,
+        leg.time * sign,
+      ];
     };
 
     // The camera's right/up/forward are identified by what the legs physically
@@ -399,9 +395,10 @@ export function useTestObject(
       // e0 is the observer's own 4-velocity: it must NOT be rotated by
       // free-look, or looking around would change where you are going.
       e0: [cart.e0.spatial[0], cart.e0.spatial[1], cart.e0.spatial[2], cart.e0.time],
-      e1: rot(legs[axes.right.index]!, axes.right.sign),
-      e2: rot(legs[axes.up.index]!, axes.up.sign),
-      e3: rot(legs[axes.forward.index]!, axes.forward.sign),
+      e1: resolve(legs[axes.right.index]!, axes.right.sign),
+      e2: resolve(legs[axes.up.index]!, axes.up.sign),
+      e3: resolve(legs[axes.forward.index]!, axes.forward.sign),
+      look: quaternionFromYawPitch(look.yaw, look.pitch),
     };
   }
 
