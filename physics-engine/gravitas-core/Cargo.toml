@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "A high-fidelity General Relativity computation engine. Kerr spacetime geodesics, accretion disk physics, and spacetime visualization -- all in pure Rust."
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/steeltroops-ai/blackhole-simulation"
+repository = "https://github.com/cwtf/blackhole-simulation"
 keywords = ["physics", "general-relativity", "kerr", "geodesic", "spacetime"]
 categories = ["science", "simulation", "mathematics"]
 

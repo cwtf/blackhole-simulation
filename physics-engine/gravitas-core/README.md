@@ -161,4 +161,4 @@ For browser implementations, use the companion library `gravitas-wasm`. It provi
 
 ## License
 
-MIT © Mayank (steeltroops-ai)
+MIT © Mayank (steeltroops-ai) and cwtf

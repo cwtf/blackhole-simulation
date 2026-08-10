@@ -2,8 +2,9 @@
 
 A scientifically accurate, real-time relativistic ray-marching engine for visualizing Kerr black holes at near-extremal spin ($a=0.999$). Built with **Next.js 14**, **WebGL 2.0 (High Compatibility)**, **WebGPU (Performance Roadmap)**, and **Rust (Physics Kernel)**.
 
-Originally created by Mayank Pratap Singh, this standalone project provides the
-complete simulation, physics engine, and rendering pipeline in one repository.
+Originally created by Mayank Pratap Singh and maintained by
+[cwtf](https://github.com/cwtf), this standalone project provides the complete
+simulation, physics engine, and rendering pipeline in one repository.
 
 ---
 
@@ -170,7 +171,7 @@ bun run dev:watch
 
 ## License
 
-MIT - Copyright (c) 2026 Mayank / steeltroops-ai.
+MIT - Copyright (c) 2026 Mayank / steeltroops-ai and cwtf.
 
 ### Asset credits
 

@@ -39,7 +39,8 @@ export const UserProfile = () => {
                 <div className="absolute inset-0 liquid-glass-highlight pointer-events-none" />
 
                 <span className="relative z-10 text-[11px] text-white/90 font-medium tracking-wide">
-                  Built by <span className="font-bold text-white">Mayank</span>
+                  Built by{" "}
+                  <span className="font-bold text-white">Mayank &amp; cwtf</span>
                 </span>
               </div>
             </motion.div>
@@ -57,7 +58,7 @@ export const UserProfile = () => {
             className="flex flex-col items-center gap-5 z-50"
           >
             <a
-              href="https://github.com/steeltroops-ai/blackhole-simulation"
+              href="https://github.com/cwtf/blackhole-simulation"
               target="_blank"
               rel="noopener noreferrer"
               className="text-white opacity-60 hover:opacity-100 transition-all transform hover:scale-125"
