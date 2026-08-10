@@ -1,6 +1,6 @@
 /** Deployment identity for the standalone static app. */
 
-export const BASE_PATH = "";
+export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 /** Set this in production so generated metadata uses the deployed origin. */
 export const SITE_URL = (

@@ -8,11 +8,14 @@
 //      The header block is kept for `bun run dev`, where it still works and
 //      gives the SAB path a header-based origin to develop against.
 const isDev = process.env.NODE_ENV === "development";
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 const nextConfig = {
   // Static export for GitHub Pages. Dev keeps the normal server so header
   // config and fast refresh behave as upstream expects.
   ...(isDev ? {} : { output: "export" }),
+
+  basePath,
 
   // Emit `<route>/index.html` so static hosts resolve directory URLs without a
   // rewrite rule.
