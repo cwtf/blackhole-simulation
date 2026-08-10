@@ -2,6 +2,12 @@
 
 A scientifically accurate, real-time relativistic ray-marching engine for visualizing Kerr black holes at near-extremal spin ($a=0.999$). Built with **Next.js 14**, **WebGL 2.0 (High Compatibility)**, **WebGPU (Performance Roadmap)**, and **Rust (Physics Kernel)**.
 
+This repository is a fork of
+[steeltroops-ai/blackhole-simulation](https://github.com/steeltroops-ai/blackhole-simulation),
+originally created by Mayank Pratap Singh. The fork preserves the upstream Git
+history and MIT license; its additional physics, rendering, deployment, and
+WikiGlobe work is documented in [`FORK.md`](./FORK.md).
+
 ---
 
 ## Technical Specifications
@@ -114,10 +120,9 @@ wasm-pack --version
 
 ### 2. Install dependencies and start the app
 
-From the root of the `wiki-globe` repository:
+From the repository root:
 
 ```bash
-cd blackhole-sim
 bun install
 bun run dev
 ```
@@ -167,13 +172,13 @@ bun run dev:watch
 
 MIT - Copyright (c) 2026 Mayank / steeltroops-ai.
 
-### Asset credits (wiki-globe fork)
+### Asset credits
 
 - **Sky**: [Milky Way panorama](https://www.eso.org/public/images/eso0932a/) by
-  ESO / S. Brunier, CC BY 4.0. The shipped
-  `public/textures/milky-way-eso-4k.jpg` is the 6000×3000 original
-  area-averaged in linear light to 4096×2048 by the parent repository's
-  `scripts/data/generate-blackhole-skybox.ps1`. It is sampled per escaped ray,
+  ESO / S. Brunier, CC BY 4.0. The shipped 4096×2048
+  `public/textures/milky-way-eso-4k.jpg` was area-averaged in linear light from
+  the 6000×3000 source during the original WikiGlobe integration. It is sampled
+  per escaped ray,
   so the sky is genuinely lensed; the galactic plane's 60° tilt relative to the
   accretion disk is a stated styling choice, not a measurement — the two are
   physically unrelated. See `FORK.md`.

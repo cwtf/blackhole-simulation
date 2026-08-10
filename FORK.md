@@ -1,11 +1,12 @@
 # Fork notes
 
-This directory is a vendored fork of
+This repository is a GitHub fork of
 **[steeltroops-ai/blackhole-simulation](https://github.com/steeltroops-ai/blackhole-simulation)**
-(MIT, © Mayank Pratap Singh), adopted as the base app for wiki-globe's black
-hole simulator per `docs/todo/black-hole-simulator-spec.md`.
+(MIT, © Mayank Pratap Singh), extended as the black hole simulator associated
+with [WikiGlobe](https://github.com/cwtf/wiki-globe).
 
-- Upstream commit: `459c15a9750142a230c07bd1979456053380cc47` (`main`, 2026-04-30)
+- Fork repository: <https://github.com/cwtf/blackhole-simulation>
+- Fork point: `459c15a9750142a230c07bd1979456053380cc47` (`main`, 2026-04-30)
 - Upstream licence: MIT — `LICENSE` is kept verbatim and must stay that way.
 
 The spec calls for keeping this mergeable with upstream: **prefer additive
@@ -14,10 +15,10 @@ change here.
 
 ## Deployment shape
 
-Upstream is a Vercel server build at its own domain. Here it is a **statically
-exported sub-app mounted at `/blackhole/`** on `wikiglo.be`, published by
-`.github/workflows/pages.yml` at the repository root alongside the (build-free)
-Cesium globe.
+Upstream is a Vercel server build at its own domain. This fork produces a
+**statically exported app mounted at `/blackhole/`** for `wikiglo.be`. Its
+deployment pipeline must publish the generated `out/` directory at that path;
+deployment ownership is intentionally separate from the WikiGlobe source tree.
 
 Consequences:
 
@@ -104,8 +105,8 @@ Check which path is live: `window.__bh.transport()` →
 | Path | Why |
 | --- | --- |
 | `.github/workflows/production.yml` | deploys to upstream's Vercel project with their secrets |
-| `vercel.json`, `scripts/vercel-build.sh` | Vercel-only build path (its `RUSTFLAGS=-C target-feature=+bulk-memory` and `CARGO_BUILD_JOBS=1` are carried into the Pages workflow) |
-| `lefthook.yml` | git hooks would install into the parent wiki-globe repo |
+| `vercel.json`, `scripts/vercel-build.sh` | Vercel-only build path; standalone builds retain its `RUSTFLAGS=-C target-feature=+bulk-memory` and `CARGO_BUILD_JOBS=1` requirements |
+| `lefthook.yml` | originally removed while the app was vendored because its hooks would install into the WikiGlobe repo |
 | `scripts/indexnow-ping.ts` | pings search engines for upstream's domain |
 | `src/app/robots.ts`, `src/app/sitemap.ts` | `robots.txt` is only honoured at the origin root; the globe's root `robots.txt` / `sitemap.xml` own site-wide SEO |
 | `src/app/google71f68cb94e351e26.html`, `public/c9f345b7cd2d289e01df73e6ca6c86e8.txt` | Search Console / IndexNow ownership proofs for upstream's domain |
@@ -596,9 +597,9 @@ in `src/configs/skybox.config.ts` (the decisions and the maths, unit-tested),
 `chunks/background.ts`.
 
 **The asset is a derivative of the one the globe already ships**, per §6.2.
-`scripts/data/generate-blackhole-skybox.ps1` (in the *parent* repo, next to the
-existing `generate-skybox.ps1`) area-averages `assets/milky-way-panorama-hires.jpg`
-from 6000×3000 down to 4096×2048 and writes
+During the original WikiGlobe integration,
+`scripts/data/generate-blackhole-skybox.ps1` in that repository area-averaged
+`assets/milky-way-panorama-hires.jpg` from 6000×3000 down to 4096×2048 and wrote
 `public/textures/milky-way-eso-4k.jpg`, 2.8 MB. Two things about that script
 matter:
 

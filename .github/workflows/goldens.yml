@@ -1,0 +1,74 @@
+name: Capture shader goldens
+
+# Manual only. Moving a visual-regression baseline requires human review.
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why are the goldens being re-captured?"
+        required: true
+        default: "Establish baseline after physics corrections"
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    env:
+      CARGO_BUILD_JOBS: "1"
+      RUSTFLAGS: "-C target-feature=+bulk-memory"
+      SHADER_CHECK_BASE_URL: http://127.0.0.1:3000/blackhole
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up Rust (wasm32 target)
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            physics-engine/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Install wasm-pack
+        run: |
+          if ! command -v wasm-pack &> /dev/null; then
+            curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          fi
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install Chromium for Playwright
+        run: bunx playwright install --with-deps chromium
+
+      - name: Build WASM physics engine
+        run: bun run build:wasm
+
+      - name: Capture goldens
+        run: bun run shader:update-goldens --confirm
+
+      - name: Show what changed
+        run: |
+          ls -la tests/golden/
+          cat tests/golden/manifest.json
+
+      - name: Upload goldens for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: shader-goldens
+          path: |
+            tests/golden/*.png
+            tests/golden/manifest.json
+          if-no-files-found: error
+          retention-days: 14
