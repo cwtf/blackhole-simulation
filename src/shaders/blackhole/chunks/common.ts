@@ -54,6 +54,11 @@ export const COMMON_CHUNK = `
   uniform vec4 u_fp_e3;
   uniform vec4 u_fp_look;
 
+  // The rider's own suit, drawn in the frame's local coordinates so looking
+  // down shows the body it is attached to. 0 hides it. Free-look turns the
+  // head, not the torso, so the suit stays put while the view swings over it.
+  uniform float u_fp_body;
+
   // The real Milky Way panorama (spec §6.2). u_sky_enabled is
   // 0 until the JPEG has been decoded and uploaded, and stays 0 if it fails --
   // the procedural starfield is then the fallback, so the sky is never a void.

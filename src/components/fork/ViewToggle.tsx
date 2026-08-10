@@ -10,7 +10,7 @@ import type { UseTestObject } from "@/hooks/useTestObject";
  * otherwise. 3rd person is available from load and needs no object.
  */
 export function ViewToggle({ object }: { object: UseTestObject }) {
-  const { view, setView, canRideAlong } = object;
+  const { view, setView, canRideAlong, showSuit, setShowSuit } = object;
 
   return (
     // Rendered inside the test-object panel rather than positioned absolutely.
@@ -53,10 +53,23 @@ export function ViewToggle({ object }: { object: UseTestObject }) {
       </div>
 
       {view === "first" && (
-        <p className="mt-2 font-mono text-[7px] leading-relaxed text-white/35">
-          Drag to look around. Field of view is fixed: changing it would
-          compress the sky and masquerade as aberration.
-        </p>
+        <>
+          <label className="mt-2 flex cursor-pointer items-center gap-2 font-mono text-[9px] uppercase tracking-[0.15em] text-white/60 hover:text-white/90">
+            <input
+              type="checkbox"
+              checked={showSuit}
+              onChange={(e) => setShowSuit(e.target.checked)}
+              className="h-3 w-3 accent-cyan-300"
+            />
+            Suit
+          </label>
+          <p className="mt-2 font-mono text-[7px] leading-relaxed text-white/35">
+            Drag to look around — down to see your own body. Field of view is
+            fixed: changing it would compress the sky and masquerade as
+            aberration. The suit rides with you, so it is the one thing in
+            frame that is neither lensed nor shifted.
+          </p>
+        </>
       )}
     </div>
   );

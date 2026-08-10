@@ -5,6 +5,7 @@ import { NOISE_CHUNK } from "./chunks/noise";
 import { BLACKBODY_CHUNK } from "./chunks/blackbody";
 import { BACKGROUND_CHUNK } from "./chunks/background";
 import { DISK_CHUNK } from "./chunks/disk";
+import { ASTRONAUT_CHUNK } from "./chunks/astronaut";
 
 /**
  * Realistic Black Hole Fragment Shader
@@ -36,6 +37,8 @@ ${BACKGROUND_CHUNK}
 
 ${DISK_CHUNK}
 
+${ASTRONAUT_CHUNK}
+
 // === MAIN SHADER ===
 void main() {
     float minRes = min(u_resolution.x, u_resolution.y);
@@ -52,6 +55,12 @@ void main() {
     // the sky in 1st person. 1.0 leaves the 3rd-person path untouched.
     float fpEnergy = 1.0;
     bool firstPerson = u_fp_enabled > 0.5;
+    // The look direction in the rider's OWN frame, kept so the suit can be
+    // traced in those coordinates after the geodesic march has finished. The
+    // world-space ray is no use for that: it has already been lifted through
+    // the tetrad and bent by the geometry, neither of which applies to an
+    // object a metre away and at rest in the frame.
+    vec3 fpLocalDir = vec3(0.0, 0.0, 1.0);
 
     if (firstPerson) {
         // Ray built in the rider's own frame (spec §1.6). Fixed focal length:
@@ -83,6 +92,7 @@ void main() {
         // complete tetrad. Rotating only world-space spatial components would
         // break orthonormality and distort aberration during free-look.
         vec3 n = qrot(u_fp_look, normalize(vec3(uv, FP_FOCAL_LENGTH)));
+        fpLocalDir = n;
         ro = u_fp_pos;
         rd = normalize(u_fp_e0.xyz + n.x * u_fp_e1.xyz + n.y * u_fp_e2.xyz + n.z * u_fp_e3.xyz);
         // Contravariant p^t from the same legs; the conserved energy follows.
@@ -97,6 +107,30 @@ void main() {
         mat2 ry = rot((u_mouse.x - 0.5) * PI * 2.0);
         ro.yz *= rx; rd.yz *= rx;
         ro.xz *= ry; rd.xz *= ry;
+    }
+
+    // The rider's own suit (spec §1.6), traced in the frame's own coordinates
+    // before anything else happens.
+    //
+    // Doing it here rather than compositing at the end is what makes it cheap:
+    // the suit is opaque and about a metre away, so a pixel it covers cannot
+    // see anything the geodesic march would have found, and the march can be
+    // skipped outright. Tested last instead, the body would have been the most
+    // expensive part of the frame; tested first it is the cheapest.
+    //
+    // The redshift overlay is left alone. It is a diagnostic that colours every
+    // pixel by the potential the ray sampled, and a pixel of suit has no ray
+    // and therefore no honest value to show.
+    if (firstPerson && u_fp_body > 0.5 && u_show_redshift < 0.5) {
+        vec3 suitColor;
+        if (suit_trace(fpLocalDir, u_fp_look, suitColor)) {
+#ifndef ENABLE_LINEAR_OUTPUT
+            suitColor = aces_tone_mapping(suitColor);
+            suitColor = pow(max(suitColor, 0.0), vec3(0.4545));
+#endif
+            fragColor = vec4(suitColor, 1.0);
+            return;
+        }
     }
 
     // Black hole parameters

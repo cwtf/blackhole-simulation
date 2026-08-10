@@ -91,6 +91,14 @@ export interface FirstPersonFrame {
   e2: [number, number, number, number];
   e3: [number, number, number, number];
   look: [number, number, number, number];
+  /**
+   * Draw the rider's own suit in the lower half of the frame.
+   *
+   * The suit is at rest in this frame, so it is the one thing on screen that
+   * is neither lensed nor shifted — which is exactly what makes it useful as
+   * well as legible. It can still be switched off for an unobstructed view.
+   */
+  showBody: boolean;
 }
 
 export interface UseTestObject {
@@ -115,6 +123,9 @@ export interface UseTestObject {
   /** Free-look, applied inside the frame. Radians. */
   look: { yaw: number; pitch: number };
   addLook: (dYaw: number, dPitch: number) => void;
+  /** Whether the rider's suit is drawn in 1st person. */
+  showSuit: boolean;
+  setShowSuit: (s: boolean) => void;
   /** Null in 3rd person; the rider's frame otherwise. */
   firstPersonFrame: FirstPersonFrame | null;
   /** True once the rider has reached the singularity. */
@@ -167,6 +178,10 @@ export function useTestObject(
   const [paused, setPaused] = useState(false);
   const [view, setViewInternal] = useState<ViewMode>("third");
   const [look, setLook] = useState({ yaw: 0, pitch: 0 });
+  // On by default: the 1st-person view is a spacewalk, and a spacewalk with no
+  // body attached to the eye reads as a floating camera. Off is still one click
+  // away for anyone measuring the sky rather than riding it.
+  const [showSuit, setShowSuit] = useState(true);
 
   // §1.9: default to the per-preset comfort speed, recomputed whenever the
   // mass preset changes — one ISCO orbit in ~30 s of wall clock, whatever the
@@ -399,6 +414,7 @@ export function useTestObject(
       e2: resolve(legs[axes.up.index]!, axes.up.sign),
       e3: resolve(legs[axes.forward.index]!, axes.forward.sign),
       look: quaternionFromYawPitch(look.yaw, look.pitch),
+      showBody: showSuit,
     };
   }
 
@@ -451,6 +467,8 @@ export function useTestObject(
     canRideAlong,
     look,
     addLook,
+    showSuit,
+    setShowSuit,
     firstPersonFrame,
     reachedSingularity,
     drop,

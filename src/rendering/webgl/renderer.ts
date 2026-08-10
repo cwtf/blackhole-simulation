@@ -87,6 +87,7 @@ export class WebGLRenderer {
     e2: [number, number, number, number];
     e3: [number, number, number, number];
     look: [number, number, number, number];
+    showBody: boolean;
   } | null = null;
 
   constructor() {}
@@ -450,6 +451,7 @@ export class WebGLRenderer {
         fp.look[2],
         fp.look[3],
       );
+      this.uniformBatcher.set1f("u_fp_body", fp.showBody ? 1.0 : 0.0);
     } else {
       this.uniformBatcher.set3f("u_fp_pos", 0.0, 0.0, 0.0);
       this.uniformBatcher.set4f("u_fp_e0", 0.0, 0.0, 0.0, 1.0);
@@ -457,6 +459,7 @@ export class WebGLRenderer {
       this.uniformBatcher.set4f("u_fp_e2", 0.0, 1.0, 0.0, 0.0);
       this.uniformBatcher.set4f("u_fp_e3", 0.0, 0.0, 1.0, 0.0);
       this.uniformBatcher.set4f("u_fp_look", 0.0, 0.0, 0.0, 1.0);
+      this.uniformBatcher.set1f("u_fp_body", 0.0);
     }
 
     // Set Common Uniforms
