@@ -17,7 +17,7 @@ import {
 import { DROP_PRESETS, buildDropRequest } from "@/physics/worldline";
 
 /**
- * wiki-globe fork, spec §6.3 (milestone 9): draggable orbits — the TypeScript
+ * Spec §6.3 (milestone 9): draggable orbits — the TypeScript
  * half.
  *
  * The relativistic solver is Rust and is tested there

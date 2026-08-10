@@ -59,7 +59,7 @@ const DEFAULT_ZOOM = SIMULATION_CONFIG.zoom.default;
 /**
  * Absolute floor, only a backstop — the real limit is `minZoomFor` below.
  *
- * wiki-globe fork: this used to be 2.5, and since `renderer.ts` sets
+ * This used to be 2.5, and since `renderer.ts` sets
  * `u_zoom = zoom * 2`, that fenced the camera off at r = 5M — two and a half
  * times the Schwarzschild horizon, with nothing physical about it. You could
  * not fly up to the horizon at all.
@@ -550,7 +550,7 @@ export function useCamera(
 
           // --- HORIZON CROSSING ---
           //
-          // wiki-globe fork, two fixes.
+          // Two fixes.
           //
           // Units: `r` here is `params.zoom`, but the renderer sets
           // `u_zoom = zoom * 2`, so the camera's actual radius is twice this.
@@ -618,12 +618,12 @@ export function useCamera(
 
         // Auto-Spin
         //
-        // wiki-globe fork: multiplied by `dt`. It used to be added per *frame*,
+        // Multiplied by `dt`. It used to be added per *frame*,
         // which made the config's "rad/s" unit a lie and the rotation
         // framerate-dependent — 0.005/frame is 0.3 rad/s at 60 fps but half
         // that on a 30 fps display, and the whole scene visibly sped up
         // whenever the quality preset let the frame rate rise. Now the unit is
-        // real, and the default matches the globe's own AUTOROTATE_RATE so the
+        // real, and the default gives one full turn in about 17 minutes, so the
         // two apps drift at the same speed.
         const spinSpeed = paramsRef.current.autoSpin ?? DEFAULT_AUTO_SPIN;
         if (
@@ -795,7 +795,7 @@ export function useCamera(
   /**
    * Point the orbit camera at a given polar angle (spec §6.4).
    *
-   * wiki-globe fork. Selecting a real black hole applies that object's
+   * Selecting a real black hole applies that object's
    * measured inclination — 17° for M87*, 69° for GRO J1655−40 — and the
    * difference is dramatic, so this cannot be left to the user to dial in.
    *

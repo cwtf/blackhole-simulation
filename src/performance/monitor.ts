@@ -77,7 +77,7 @@ export class PerformanceMonitor {
   private renderResolution: number = 1.0;
 
   /**
-   * wiki-globe fork: freeze all self-tuning (spec §4 visual regression).
+   * Freeze all self-tuning (spec §4 visual regression).
    *
    * When set, calibration never runs and the PID resolution controller is
    * bypassed, so the same scene renders identically regardless of machine
@@ -242,7 +242,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * wiki-globe fork: pin quality and resolution for a reproducible capture.
+   * Pin quality and resolution for a reproducible capture.
    *
    * Call before the first frame. Skips calibration outright rather than
    * ending it, because `finalizeCalibration` would pick a tier from whatever

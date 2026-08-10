@@ -1,7 +1,7 @@
 /**
  * Real black hole presets (spec §6.4).
  *
- * wiki-globe fork. Selecting one of these locks the simulator to a named
+ * Selecting one of these locks the simulator to a named
  * object's measured parameters instead of the synthetic mass presets in
  * `mass-presets.ts`.
  *
@@ -14,12 +14,8 @@
  * `unconstrained` means *the number is a placeholder chosen so the renderer
  * has something to draw*, and the UI must say so.
  *
- * The values live in `src/data/real-black-holes.json` rather than in this file
- * so that milestone 11 (the same objects as sky dots on the globe, which is
- * plain ES modules with no TypeScript build) can consume exactly the same
- * bytes. `scripts/data/generate-black-holes.mjs` copies that file out to
- * `data/black-holes.json` at the repo root, and the validator fails if the two
- * drift apart.
+ * The values live in `src/data/real-black-holes.json` so data tooling can
+ * consume the same bytes without a TypeScript build.
  */
 
 import raw from "@/data/real-black-holes.json";
@@ -46,7 +42,7 @@ export interface Measured<T> {
 }
 
 export interface RealBlackHole {
-  /** URL slug: the object is reachable at `/blackhole/{id}/`. */
+  /** URL slug: the object is reachable at `/{id}/`. */
   id: string;
   name: string;
   shortName: string;
@@ -137,7 +133,7 @@ export function massPresetForRealBlackHole(o: RealBlackHole): MassPreset {
  *
  * Only mass and spin are checked, and that is a deliberate deviation from the
  * spec's "mass/spin/inclination are fixed" — see the milestone 10 note in
- * FORK.md. Inclination is applied when the object is selected but orbiting the
+ * Inclination is applied when the object is selected but orbiting the
  * camera afterwards does not break the lock, because the free-orbit camera is
  * a property of the *viewer*, not of the black hole: dropping to "custom"
  * every time the user dragged the view would make the badge meaningless.

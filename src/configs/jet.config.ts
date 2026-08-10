@@ -1,5 +1,5 @@
 /**
- * Relativistic jet model — wiki-globe fork (spec §1.4).
+ * Relativistic jet model (spec §1.4).
  *
  * The launch mechanism (Blandford-Znajek) is NOT simulated: that needs
  * magnetised GRMHD. What is modelled is a **kinematic** conical outflow whose

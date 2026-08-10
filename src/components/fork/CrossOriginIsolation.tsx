@@ -7,9 +7,9 @@ import { BASE_PATH } from "@/configs/deployment.config";
 const RELOAD_FLAG = "coi-reloaded";
 
 /**
- * wiki-globe fork only. Registers `public/coi-serviceworker.js` so the page
+ * Registers `public/coi-serviceworker.js` so the page
  * becomes cross-origin isolated on GitHub Pages, where response headers cannot
- * be set (see next.config.mjs and FORK.md).
+ * be set (see next.config.mjs).
  *
  * Renders nothing. Deliberately does *not* block or gate the app: the very
  * first load of a session is uncontrolled and therefore not isolated, and the

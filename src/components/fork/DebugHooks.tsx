@@ -118,8 +118,8 @@ const SHADER_FOCAL_LENGTH = 1.5;
 const ZOOM_TO_DISTANCE = 2.0;
 
 /**
- * wiki-globe fork only. Console handle for the verification workflow, mirroring
- * the globe's own `window.__globe`.
+ * Console handle for the verification workflow, mirroring
+ * the app's other browser debugging handles.
  *
  * `captureFrame` exists because the renderer creates its WebGL2 context with
  * `preserveDrawingBuffer: false`, so reading the canvas after a frame has been

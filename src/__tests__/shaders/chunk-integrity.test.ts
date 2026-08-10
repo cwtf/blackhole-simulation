@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 /**
- * wiki-globe fork: guard the one failure mode that keeps recurring.
+ * Guard the one failure mode that keeps recurring.
  *
  * The shader chunks are JS template literals. A backtick inside a GLSL comment
  * silently ends the string. If the comment contains an *odd* number of

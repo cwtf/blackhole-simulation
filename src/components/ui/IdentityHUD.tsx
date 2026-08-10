@@ -29,7 +29,7 @@ export const IdentityHUD = ({
     <div className="flex flex-col">
       <div className="flex items-center gap-3 lg:gap-4">
         <Image
-          // wiki-globe fork: with images.unoptimized the src is emitted
+          // With images.unoptimized the src is emitted
           // verbatim, so basePath is not applied and /brand-logo.png 404s
           // under /blackhole. Prefix it explicitly.
           src={asset("/brand-logo.png")}

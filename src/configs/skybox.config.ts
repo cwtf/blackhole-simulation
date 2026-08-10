@@ -1,5 +1,5 @@
 /**
- * Milky Way sky — wiki-globe fork (spec §6.2, milestone 8).
+ * Milky Way sky (spec §6.2, milestone 8).
  *
  * Upstream drew the background with a procedural starfield: hashed cells for
  * stars plus an fbm nebula. This replaces it with the real ESO/S. Brunier
@@ -32,7 +32,7 @@ export const SKYBOX_TEXTURE_HEIGHT = 2048;
 
 /**
  * Credit line. Project licensing rule #4: a new texture needs an attribution
- * line in the app's own UI as well as in wiki-globe's.
+ * line in the app's own UI.
  */
 export const SKYBOX_ATTRIBUTION = {
   title: "Milky Way panorama",
@@ -118,9 +118,8 @@ function cross(a: Vec3, b: Vec3): Vec3 {
  *
  * - `centre` — toward the galactic centre; the panorama's horizontal midpoint.
  * - `pole` — the north galactic pole; the panorama's top edge.
- * - `third` — completes a right-handed triple, so the longitude convention
- *   matches `scripts/data/generate-skybox.ps1` exactly and the globe and the
- *   simulator read the same pixel for the same direction.
+ * - `third` — completes a right-handed triple using the panorama's longitude
+ *   convention.
  */
 export function galacticBasis(
   orientation: {

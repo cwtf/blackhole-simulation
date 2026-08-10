@@ -14,7 +14,7 @@ import {
 } from "@/configs/real-black-holes";
 
 /**
- * wiki-globe fork, spec §6.4.
+ * Spec §6.4.
  *
  * Most of these assert on the *discipline* rather than on the astrophysics:
  * that no field can be added without a citation, that no value can be quoted
@@ -96,7 +96,7 @@ describe("real black hole data discipline", () => {
     }
   });
 
-  it("keeps sky positions in range for the globe's sky dots", () => {
+  it("keeps sky positions in range", () => {
     for (const o of REAL_BLACK_HOLES) {
       expect(o.raDeg).toBeGreaterThanOrEqual(0);
       expect(o.raDeg).toBeLessThan(360);

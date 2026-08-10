@@ -6,11 +6,7 @@ import { CrossOriginIsolation } from "@/components/fork/CrossOriginIsolation";
 import { SITE_URL, asset } from "@/configs/deployment.config";
 import "./globals.css";
 
-// wiki-globe fork: upstream's SEO identity (canonical URLs, Search Console
-// token, citation URLs) points at blackhole-simulation.vercel.app. Publishing
-// that verbatim on wikiglo.be would claim another site's identity, so every
-// self-referential URL below resolves through SITE_URL instead. Authorship
-// credit to the upstream author is deliberately kept — see FORK.md.
+// Self-referential metadata resolves through the configured deployment URL.
 
 const inter = Inter({
   variable: "--font-inter",
@@ -78,7 +74,7 @@ export const metadata: Metadata = {
     description:
       "Experience a physically accurate Kerr black hole simulation in real-time. Explore the event horizon, photon ring, and accretion disk.",
     url: SITE_URL,
-    siteName: "Wiki Globe — Black Hole Simulation",
+    siteName: "Black Hole Simulation",
     locale: "en_US",
     type: "website",
   },
@@ -108,9 +104,6 @@ export const metadata: Metadata = {
     // languages: populated only when real translations exist at the cited URLs.
     // Misleading hreflang demotes ranking; strict empty policy until real i18n ships.
   },
-  // Upstream's Search Console / IndexNow ownership proofs were removed in this
-  // fork: they verify blackhole-simulation.vercel.app, not wikiglo.be. Add
-  // wikiglo.be's own tokens here if the domain is ever registered with them.
   appleWebApp: {
     capable: true,
     title: "Black Hole Lab",
@@ -340,18 +333,12 @@ const breadcrumbSchema = {
     {
       "@type": "ListItem",
       position: 1,
-      name: "Wiki Globe",
-      item: "https://wikiglo.be/",
-    },
-    {
-      "@type": "ListItem",
-      position: 2,
       name: "Black Hole Simulation",
       item: SITE_URL,
     },
     {
       "@type": "ListItem",
-      position: 3,
+      position: 2,
       name: "Physics Documentation",
       item: `${SITE_URL}#physics-guide`,
     },

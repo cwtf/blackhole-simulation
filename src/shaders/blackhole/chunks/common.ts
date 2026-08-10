@@ -36,7 +36,7 @@ export const COMMON_CHUNK = `
   uniform vec3 u_camPos;
   uniform vec4 u_camQuat;
 
-  // wiki-globe fork: 1st-person camera riding the dropped object (spec §1.6).
+  // 1st-person camera riding the dropped object (spec §1.6).
   //
   // The four legs of the observer's orthonormal frame, resolved into this
   // shader's Cartesian axes on the CPU: .xyz is the spatial part, .w is the
@@ -54,7 +54,7 @@ export const COMMON_CHUNK = `
   uniform vec4 u_fp_e2;
   uniform vec4 u_fp_e3;
 
-  // wiki-globe fork: the real Milky Way panorama (spec §6.2). u_sky_enabled is
+  // The real Milky Way panorama (spec §6.2). u_sky_enabled is
   // 0 until the JPEG has been decoded and uploaded, and stays 0 if it fails --
   // the procedural starfield is then the fallback, so the sky is never a void.
   //
@@ -71,7 +71,7 @@ export const COMMON_CHUNK = `
   // === CONSTANTS ===
 #define PI 3.14159265359
 #define MAX_DIST ${PHYSICS_CONSTANTS.rayMarching.maxDistance.toFixed(1)}
-  // wiki-globe fork (spec §6.1): radius beyond which an outward-bound ray is
+  // Spec §6.1: radius beyond which an outward-bound ray is
   // treated as escaped and its current direction taken as the sky direction.
   // The neglected remaining deflection goes as ~2*r_s*b/r^2, which at this
   // radius is well under a pixel for any impact parameter that still has the

@@ -1,6 +1,6 @@
 //! Spec §6.3 / §1.6: the stored worldline has to be dense enough to *draw*.
 //!
-//! wiki-globe fork. Integration accuracy and output resolution are different
+//! Integration accuracy and output resolution are different
 //! things, and this suite exists because the fork had the first without the
 //! second. The conserved quantities were clean to 1e-10 while consecutive
 //! stored samples sat 46 degrees of orbital phase apart, because a bound orbit

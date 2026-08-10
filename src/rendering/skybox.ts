@@ -1,5 +1,5 @@
 /**
- * Milky Way sky texture — wiki-globe fork (spec §6.2, milestone 8).
+ * Milky Way sky texture (spec §6.2, milestone 8).
  *
  * Loads the ESO/S. Brunier panorama and hands the renderer a texture the
  * fragment shader can sample from an escaped ray direction. See

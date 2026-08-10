@@ -1,7 +1,7 @@
 /**
  * First-person ray construction through the observer's tetrad (spec §1.6, §5).
  *
- * wiki-globe fork. §5: "1st-person correctness lives or dies on the tetrad:
+ * §5: "1st-person correctness lives or dies on the tetrad:
  * build it once (static frame + boost), generate rays only through it. Ad-hoc
  * per-effect 'redshift shaders' are how it becomes a toy."
  *

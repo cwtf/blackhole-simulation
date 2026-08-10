@@ -13,7 +13,7 @@
 >
 > Re-capture with `bun run shader:update-goldens` on a machine that can run
 > the suite, and delete this notice. This was not done at the time because the
-> capture environment could not produce a canvas (see FORK.md, milestone 10).
+> capture environment could not produce a canvas.
 > Until then a failure here is expected and proves nothing.
 
 Headless capture + SSIM/pixelmatch diff against committed PNG goldens.

@@ -27,7 +27,7 @@ interface WebGLCanvasProps {
   onTouchEnd: (e: React.TouchEvent | TouchEvent) => void;
   onMetricsUpdate?: (metrics: PerformanceMetrics) => void;
   /**
-   * wiki-globe fork: the rider's orthonormal frame for the 1st-person view
+   * The rider's orthonormal frame for the 1st-person view
    * (spec §1.6), or null for 3rd person. Passed through a ref so a new frame
    * every animation tick does not re-render the React tree.
    */
@@ -57,7 +57,7 @@ export const WebGLCanvas = ({
 
   const startLoop = () => {
     if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    // wiki-globe fork (spec §6.1). Two cheap wins that change no pixels:
+    // Spec §6.1. Two cheap wins that change no pixels:
     //
     //  * Frame cap. Every frame is a full per-pixel geodesic march, so running
     //    at a 144 Hz display's refresh rate burns several times the work

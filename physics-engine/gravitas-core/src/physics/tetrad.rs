@@ -1,6 +1,6 @@
 //! Local orthonormal frames for an observer riding a worldline (spec §1.6).
 //!
-//! wiki-globe fork. §5 is blunt about why this module exists: "1st-person
+//! §5 is blunt about why this module exists: "1st-person
 //! correctness lives or dies on the tetrad: build it once (static frame +
 //! boost), generate rays only through it. Ad-hoc per-effect 'redshift shaders'
 //! are how it becomes a toy." So aberration, Doppler and gravitational shift

@@ -50,7 +50,7 @@ export class WebGLRenderer {
   private blueNoiseTex: WebGLTexture | null = null;
   private diskLUT: WebGLTexture | null = null;
   private spectrumLUT: WebGLTexture | null = null;
-  /** wiki-globe fork: the ESO Milky Way panorama (spec §6.2). */
+  /** The ESO Milky Way panorama (spec §6.2). */
   private skybox: SkyboxTexture | null = null;
   /** Galactic axes in scene coordinates; constant, so computed once. */
   private readonly skyBasis = galacticBasis();
@@ -71,13 +71,13 @@ export class WebGLRenderer {
   public hasFloatFramebuffer = false;
 
   /**
-   * wiki-globe fork: the rider's orthonormal frame for the 1st-person view
+   * The rider's orthonormal frame for the 1st-person view
    * (spec §1.6), already resolved into this shader's Cartesian axes with
    * free-look folded into the spatial legs. Null means 3rd person.
    *
    * Each leg is `[x, y, z, e^t]`.
    */
-  /** wiki-globe fork: true when `?deterministic=1` pinned this render. */
+  /** True when `?deterministic=1` pinned this render. */
   private deterministicCapture = false;
 
   public firstPerson: {
@@ -105,7 +105,7 @@ export class WebGLRenderer {
     }
     this.gl = gl;
 
-    // wiki-globe fork: pin self-tuning before the first frame, so calibration
+    // Pin self-tuning before the first frame, so calibration
     // never gets a chance to sample this machine's frame times.
     this.deterministicCapture = isDeterministicCapture();
     if (this.deterministicCapture) {
@@ -175,7 +175,7 @@ export class WebGLRenderer {
     this.noiseTex = createNoiseTexture(gl, 256);
     this.blueNoiseTex = createBlueNoiseTexture(gl, 256);
 
-    // wiki-globe fork: kicked off, not awaited. The shader falls back to the
+    // Kicked off, not awaited. The shader falls back to the
     // procedural starfield until this resolves, so the first frames still draw
     // a sky rather than a black void.
     this.skybox = new SkyboxTexture(gl);
@@ -246,7 +246,7 @@ export class WebGLRenderer {
     // 2. Physics / LUT Sync
     this.syncLUTs();
 
-    // wiki-globe fork: a deterministic capture renders one fixed instant of
+    // A deterministic capture renders one fixed instant of
     // the simulation. Letting the clock advance would make the disk phase and
     // jet knots depend on the frame count, i.e. on machine speed.
     if (this.deterministicCapture) this.time = CAPTURE_TIME;
@@ -271,7 +271,7 @@ export class WebGLRenderer {
 
     // Phase 2.3: Virtual Viewport Scaling
     //
-    // wiki-globe fork (spec §6.1). Two problems fixed here:
+    // Spec §6.1. Two problems fixed here:
     //
     //  * `params.renderScale` existed but was never read — the only thing
     //    driving resolution was the PID controller, so the user's own setting
@@ -294,7 +294,7 @@ export class WebGLRenderer {
         : baseScale;
 
     // 3. Render Pass
-    // wiki-globe fork: a deterministic capture pins the quality tier here too.
+    // A deterministic capture pins the quality tier here too.
     // Overriding at this single point covers both the shader variant and the
     // step budget, so a golden cannot vary with whatever tier calibration or
     // stored settings would otherwise have chosen.
@@ -354,7 +354,7 @@ export class WebGLRenderer {
       this.uniformBatcher.set("u_spectrumLUT", 5);
     }
 
-    // wiki-globe fork: Milky Way sky (spec §6.2). u_sky_enabled gates the
+    // Milky Way sky (spec §6.2). u_sky_enabled gates the
     // lookup, so a texture that has not arrived (or failed) leaves the shader
     // on the procedural starfield rather than sampling unit 6 blind.
     const skyTexture = this.skybox?.get() ?? null;
@@ -431,7 +431,7 @@ export class WebGLRenderer {
     this.uniformBatcher.set3f("u_camPos", 0.0, 0.0, 0.0);
     this.uniformBatcher.set4f("u_camQuat", 0.0, 0.0, 0.0, 1.0);
 
-    // wiki-globe fork: 1st-person rider frame (spec §1.6). `firstPerson` is
+    // 1st-person rider frame (spec §1.6). `firstPerson` is
     // set from React via setFirstPerson(); when absent the shader takes the
     // ordinary 3rd-person path and nothing here changes behaviour.
     const fp = this.firstPerson;
@@ -514,7 +514,7 @@ export class WebGLRenderer {
         let resolved: WebGLTexture | null;
 
         if (this.deterministicCapture) {
-          // wiki-globe fork: TAA blends each frame with accumulated history,
+          // TAA blends each frame with accumulated history,
           // so its output depends on how many frames have been rendered. On a
           // static scene it converges but never exactly, which left goldens
           // differing byte-for-byte between runs even after quality,

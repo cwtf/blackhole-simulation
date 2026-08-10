@@ -13,10 +13,10 @@ import {
 /**
  * Parameter card for a selected real black hole (spec §6.4).
  *
- * wiki-globe fork. This is the honesty surface for milestone 10, and it is
+ * This is the honesty surface for milestone 10, and it is
  * deliberately louder than a normal readout:
  *
- * - The **badge** follows the globe's `LIVE`/`DATA` discipline (CLAUDE.md
+ * - The **badge** follows the app's `LIVE`/`DATA` discipline (CLAUDE.md
  *   principle #2). `DATA` means every locked parameter still matches the
  *   published values. `CUSTOM` means the user has moved one, so the picture is
  *   no longer this object and the card says so instead of quietly keeping the

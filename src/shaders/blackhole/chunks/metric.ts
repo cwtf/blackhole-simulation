@@ -135,7 +135,7 @@ export const METRIC_CHUNK = `
         float sigma_ratio = r2 / max(1e-8, sigma);
         vec3 r_hat = -normalize(p);
 
-        // wiki-globe fork: the Newtonian M/r^2 term that used to lead this
+        // The Newtonian M/r^2 term that used to lead this
         // expression has been removed. Null geodesics do not carry it: the
         // Binet equation for light is u'' + u = 3*M*u^2, whose Cartesian form
         // with |v| renormalised each step is a purely 3*M*L^2/r^4 central
@@ -150,7 +150,7 @@ export const METRIC_CHUNK = `
         //   with    M/r^2 : b_crit = 7.777 M  (+49.7% vs 3*sqrt(3) M)
         //   without M/r^2 : b_crit = 5.194 M  (-0.04% vs 3*sqrt(3) M)
         // and a ray just outside b_crit winds ~11.9 rad (>= 2*pi) before
-        // escaping, as the photon ring requires. See spec §4 / FORK.md.
+        // escaping, as the photon ring requires. See spec §4.
         //
         // Kerr (a != 0) stays approximate — the spin-orbit L_eff model leaves
         // the critical curve ~10-25% off at high spin. Documented, not fixed.

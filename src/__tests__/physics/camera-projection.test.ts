@@ -11,7 +11,7 @@ import {
 } from "@/physics/camera-projection";
 
 /**
- * wiki-globe fork: the overlay marker is drawn outside the ray-marcher, so if
+ * The overlay marker is drawn outside the ray-marcher, so if
  * this projection disagrees with the shader's camera the object appears in the
  * wrong place — and with the preview pane throttled there is no visual signal
  * that it has. These pin the projection to the shader's construction.

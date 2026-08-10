@@ -1,7 +1,7 @@
 /**
  * Playback speed control (spec §1.9).
  *
- * wiki-globe fork. The slider scales how fast the simulation clock advances
+ * The slider scales how fast the simulation clock advances
  * against wall clock — proper time τ in 1st person, the distant observer's
  * clock in 3rd — and **never touches the physics**. The worldline is
  * integrated once at drop time; changing speed only changes which sample is

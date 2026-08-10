@@ -1,6 +1,6 @@
 //! Test-object worldlines: timelike geodesics parameterised by proper time.
 //!
-//! wiki-globe fork, spec §1.5. `plunge.rs` shipped the ISCO entry state and
+//! Spec §1.5. `plunge.rs` shipped the ISCO entry state and
 //! noted that "the integrated timelike geodesic ... is its own change" — this
 //! is that change, generalised from the ISCO plunge to an arbitrary dropped
 //! test object.

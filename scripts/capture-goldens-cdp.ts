@@ -2,7 +2,7 @@
 /**
  * Golden capture that talks to Chromium directly over CDP.
  *
- * wiki-globe fork. `scripts/update-goldens.ts` drives Playwright, which cannot
+ * `scripts/update-goldens.ts` drives Playwright, which cannot
  * launch a browser at all on some Windows hosts: it passes the DevTools
  * channel over inherited handles (`--remote-debugging-pipe`), and when
  * security software blocks that, the browser process starts, answers
@@ -20,7 +20,7 @@
  *
  * Usage:
  *   bun scripts/capture-goldens-cdp.ts --confirm
- *   SHADER_CHECK_BASE_URL=http://127.0.0.1:3007/blackhole bun scripts/capture-goldens-cdp.ts --confirm
+ *   SHADER_CHECK_BASE_URL=http://127.0.0.1:3007 bun scripts/capture-goldens-cdp.ts --confirm
  */
 
 import { spawn, execSync, type ChildProcess } from "node:child_process";
@@ -37,7 +37,7 @@ import {
 import type { FrameConfig } from "../tests/visual-regression/capture";
 
 const CONFIRM = "--confirm";
-const BASE_URL = process.env.SHADER_CHECK_BASE_URL ?? "http://127.0.0.1:3000/blackhole";
+const BASE_URL = process.env.SHADER_CHECK_BASE_URL ?? "http://127.0.0.1:3000";
 const PORT = Number(process.env.SHADER_CHECK_CDP_PORT ?? 9223);
 const ANGLE = process.env.SHADER_CHECK_ANGLE ?? "swiftshader";
 const CDP_TIMEOUT_MS = Number(process.env.SHADER_CHECK_CDP_TIMEOUT_MS ?? 600_000);

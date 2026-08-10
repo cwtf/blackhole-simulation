@@ -1,6 +1,6 @@
 //! Spec §1.6 / §5: the 1st-person observer's local frame.
 //!
-//! wiki-globe fork. §5 says the 1st-person view "lives or dies on the tetrad",
+//! §5 says the 1st-person view "lives or dies on the tetrad",
 //! so these tests check the property everything else depends on — that the
 //! frame really is orthonormal, `g(e_a, e_b) = eta_ab` — at every radius the
 //! rider passes through, **including inside the horizon**.

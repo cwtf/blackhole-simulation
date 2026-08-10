@@ -1,11 +1,10 @@
 import { SimulatorApp } from "@/components/fork/SimulatorApp";
 
 /**
- * The simulator's own root, at `/blackhole/`.
+ * The simulator's root route.
  *
- * wiki-globe fork (spec §6.4). This used to be the whole 1000-line app; it was
- * moved to `components/fork/SimulatorApp.tsx` so that the per-object routes at
- * `/blackhole/{name}/` can render the same component with a real black hole
+ * The app shell lives in `components/fork/SimulatorApp.tsx` so per-object routes at
+ * `/{name}/` can render the same component with a real black hole
  * preselected. Nothing else changed in the move.
  *
  * No `initialObjectId` here on purpose: the bare route is the generic

@@ -93,7 +93,7 @@ export const DISK_CHUNK = `
 #ifdef ENABLE_DOPPLER
                   // Relativistic Beaming (Liouville's Theorem for Specific Intensity)
                   // Bolometric intensity scales as delta^4 exactly (I_nu/nu^3 is
-                  // the invariant). wiki-globe fork: upstream used delta^3.5 for
+                  // the invariant). Upstream used delta^3.5 for
                   // "visual dynamic range stability" — spec §1.3 makes the g^4
                   // exponent non-negotiable, since the approaching/receding
                   // brightness asymmetry is the signature of a real render.

@@ -3,7 +3,7 @@ import { SKYBOX_SHADER_CONSTANTS } from "@/configs/skybox.config";
 /**
  * Sky background.
  *
- * wiki-globe fork (spec §6.2, milestone 8): upstream's procedural starfield is
+ * Spec §6.2, milestone 8: upstream's procedural starfield is
  * still here, but it is now the *fallback* — used before the ESO panorama has
  * finished loading, if it fails to load, or if the WebGPU path (which has its
  * own simplified port) is in use. The real sky is an equirectangular lookup
@@ -112,9 +112,8 @@ export const BACKGROUND_CHUNK = `
   /**
    * The sky in the direction a ray was travelling when it escaped.
    *
-   * Equirectangular lookup matching scripts/data/generate-skybox.ps1 exactly,
-   * so the globe's cube map and this panorama read the same pixel for the same
-   * direction. u_sky_basis_* are the galactic frame's axes expressed in scene
+   * Equirectangular lookup for the panorama. u_sky_basis_* are the galactic
+   * frame's axes expressed in scene
    * coordinates; the tilt between the galactic plane and the accretion disk is
    * a stated styling choice, documented in configs/skybox.config.ts.
    *

@@ -1,7 +1,7 @@
 export { OFFSETS, BLOCK_FLOATS, TELEMETRY_SLOTS } from "./sab-schema";
 import { OFFSETS } from "./sab-schema";
 
-/** wiki-globe fork: conservation audit returned with a dropped worldline. */
+/** Conservation audit returned with a dropped worldline. */
 export interface WorldlineAudit {
   energy: number;
   angularMomentum: number;
@@ -16,7 +16,7 @@ export interface WorldlineAudit {
 }
 
 /**
- * wiki-globe fork (spec §6.3): what a requested pair of apsides turned out to
+ * Spec §6.3: what a requested pair of apsides turned out to
  * be, straight from the Rust solver.
  */
 export interface ApsidesSolution {
@@ -75,7 +75,7 @@ export class PhysicsBridge {
   private seqView: Int32Array | null = null;
   private lastSeenSequence: number = -1;
 
-  // wiki-globe fork: which transport actually came up. On GitHub Pages the
+  // Which transport actually came up. On static hosts the
   // first load of a session is never cross-origin isolated (the COI service
   // worker only controls the page from the next navigation on), so the
   // main-thread path is a routine state, not an error — and being able to
@@ -122,7 +122,7 @@ export class PhysicsBridge {
               console.log("PhysicsBridge: Worker Ready.");
               this.workerReady = true;
               this.transport = "worker-sab";
-              // wiki-globe fork: push the UI's mass and spin now that there is
+              // Push the UI's mass and spin now that there is
               // something to push them to. The worker is constructed with the
               // hard-coded (1.0, 0.9) above, and `usePhysicsState` only calls
               // updateParameters once `isReady()` — which is false for the
@@ -145,7 +145,7 @@ export class PhysicsBridge {
           err,
         );
 
-        // wiki-globe fork: the worker is constructed before the SAB, so a SAB
+        // The worker is constructed before the SAB, so a SAB
         // failure leaves a live worker with no channel to it. Tear it down
         // rather than leaking a thread for the lifetime of the page, and null
         // the handle so tick()'s worker branch cannot be taken with sab=null.
@@ -498,7 +498,7 @@ export class PhysicsBridge {
   }
 
   /**
-   * wiki-globe fork (spec §1.5): integrate a dropped test object and return
+   * Spec §1.5: integrate a dropped test object and return
    * its worldline.
    *
    * One-shot per drop, not per frame, so it goes over postMessage with a
@@ -571,7 +571,7 @@ export class PhysicsBridge {
   }
 
   /**
-   * wiki-globe fork (spec §6.3): classify a pair of apsides without
+   * Spec §6.3: classify a pair of apsides without
    * integrating, so a drag can be told live whether it is describing an orbit
    * or a capture.
    *
@@ -610,7 +610,7 @@ export class PhysicsBridge {
   }
 
   /**
-   * wiki-globe fork: which physics transport is live —
+   * Which physics transport is live —
    * `"worker-sab"` (cross-origin isolated, zero-copy) or `"main-thread"`
    * (no SharedArrayBuffer). Surfaced through `window.__bh` for the
    * deployment check in the spec's §4.

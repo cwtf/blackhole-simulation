@@ -1,6 +1,6 @@
 //! Equatorial orbits specified by their two turning points (spec §6.3).
 //!
-//! wiki-globe fork, milestone 9. The drop panel used to offer presets plus a
+//! The drop panel used to offer presets plus a
 //! start radius; this lets the user name the **periapsis and apoapsis** and get
 //! the orbit that has them. Everything here is closed form except the
 //! separatrix, which needs one bisection.

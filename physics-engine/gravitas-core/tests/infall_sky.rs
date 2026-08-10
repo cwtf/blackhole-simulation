@@ -1,6 +1,6 @@
 //! Spec §1.6: what the sky actually looks like from the rider's frame.
 //!
-//! wiki-globe fork. `tetrad.rs` already checks the frame is orthonormal and
+//! `tetrad.rs` already checks the frame is orthonormal and
 //! that its time leg is the object's 4-velocity — but a frame boosted by the
 //! *wrong amount* would pass both. What it would get wrong is the only thing
 //! the 1st-person view exists to show: how much of the sky the black hole

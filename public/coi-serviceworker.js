@@ -1,5 +1,5 @@
 /**
- * Cross-origin isolation shim (wiki-globe fork).
+ * Cross-origin isolation shim for static deployments.
  *
  * GitHub Pages cannot set response headers, and SharedArrayBuffer — which the
  * physics/render pipeline uses for its zero-copy telemetry block — is only
@@ -8,14 +8,11 @@
  * for the browser to isolate the page on the *next* navigation.
  *
  * Same idea as the widely used `coi-serviceworker` package, reimplemented here
- * so the fork carries no extra runtime dependency and so the scope stays
- * pinned under the sub-app's basePath: this file is served from
- * `/blackhole/coi-serviceworker.js`, so its default scope is `/blackhole/`
- * and it never intercepts the Cesium globe at `/`.
+ * to avoid an extra runtime dependency.
  *
  * The first load of a session is NOT isolated (no worker is controlling the
  * page yet). That is why the non-SAB fallback in `src/engine/physics-bridge.ts`
- * is a hard requirement, not an optimisation — see FORK.md.
+ * is a hard requirement, not an optimisation.
  *
  * Registration lives in `src/components/fork/CrossOriginIsolation.tsx`.
  */

@@ -27,7 +27,7 @@ import {
 /**
  * Dropped test object: integration, playback clock, and readouts (spec §1.5).
  *
- * wiki-globe fork. The worldline is integrated **once** per drop; playback
+ * The worldline is integrated **once** per drop; playback
  * only advances a clock and looks the position up. That is what keeps the
  * two camera views consistent (§1.6) and what will make the §1.9 speed slider
  * a pure playback control that cannot alter the trajectory.

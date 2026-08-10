@@ -127,12 +127,11 @@ export const SIMULATION_CONFIG = {
 
   // System Kinetics
   autoSpin: {
-    // Matches AUTOROTATE_RATE in the globe's js/app.js so the simulator and
-    // the globe drift at the same speed — one full turn in about 17 minutes.
+    // One full turn in about 17 minutes.
     //
     // This is genuinely rad/s now. It used to be added once per frame, so the
     // effective rate was ~0.3 rad/s (a full turn every 21 seconds, 50x the
-    // globe) and varied with the display's refresh rate.
+    // intended rate) and varied with the display's refresh rate.
     default: 0.006,
     min: -0.1,
     max: 0.1,
@@ -142,7 +141,7 @@ export const SIMULATION_CONFIG = {
     label: "Cam Auto-Pan",
   },
   diskSize: {
-    // wiki-globe fork: this value is multiplied by M in the shader
+    // This value is multiplied by M in the shader
     // (diskOuter = M * u_disk_size), so its unit is M, not Rs — upstream's
     // "Rs" label understated the rendered disk by a factor of two. Spec §1.3
     // puts the outer edge at ~12 r_s = 24 M, which is the new default; the

@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { fragmentShaderSource } from "@/shaders/blackhole/fragment.glsl";
 
 /**
- * wiki-globe fork, spec §1.6: the 1st-person lens has to be wide enough to
+ * Spec §1.6: the 1st-person lens has to be wide enough to
  * contain the thing the 1st-person view exists to show.
  *
  * The physics of the crossing is verified on the Rust side

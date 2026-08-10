@@ -2,7 +2,7 @@ export const BLACKBODY_CHUNK = `
   /**
    * Blackbody colour from the Planckian locus (spec §1.3).
    *
-   * wiki-globe fork. This replaces the Tanner-Helland / Mitchell Charity fit
+   * This replaces the Tanner-Helland / Mitchell Charity fit
    * upstream used, which is only calibrated to roughly 40,000 K. A real thin
    * disk around a stellar-mass black hole peaks near 10^7 K, three orders of
    * magnitude outside that fit's range, where it kept driving red and green

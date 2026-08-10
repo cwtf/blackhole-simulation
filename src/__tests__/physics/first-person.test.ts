@@ -15,7 +15,7 @@ import {
 } from "@/physics/first-person";
 
 /**
- * wiki-globe fork, spec §1.6 / §5.
+ * Spec §1.6 / §5.
  *
  * The point of these tests is that **nothing in the render path computes
  * aberration**, yet aberration must come out exactly right. So the checks

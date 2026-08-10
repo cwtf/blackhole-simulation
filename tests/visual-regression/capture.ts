@@ -29,7 +29,7 @@ function encodeHash(config: FrameConfig): string {
 /**
  * ANGLE backend for the headless capture.
  *
- * wiki-globe fork: upstream pinned `vulkan`, which hangs at launch on hosts
+ * Upstream pinned `vulkan`, which hangs at launch on hosts
  * without a usable Vulkan ICD (Chromium starts, then never completes the
  * handshake — a 180 s timeout with no error).
  *
@@ -46,7 +46,7 @@ const ANGLE_BACKEND = process.env.SHADER_CHECK_ANGLE ?? "swiftshader";
 /**
  * Attach to an already-running browser over CDP instead of launching one.
  *
- * wiki-globe fork. Playwright launches Chromium with `--remote-debugging-pipe`,
+ * Playwright launches Chromium with `--remote-debugging-pipe`,
  * which passes the CDP channel over inherited handles. Some sandboxed and
  * containerised environments block that: the browser process starts fine (it
  * answers `--version`) but the handshake never completes and the launch dies
@@ -110,7 +110,7 @@ export async function captureFrame(opts: CaptureOptions): Promise<void> {
       { timeout: 30_000 },
     );
 
-    // wiki-globe fork (spec §6.2): the Milky Way panorama is fetched and
+    // Spec §6.2: the Milky Way panorama is fetched and
     // uploaded asynchronously, and until it lands the shader draws the
     // procedural starfield instead. Shooting before it arrives records a
     // different sky with nothing in the frame to say so — the same

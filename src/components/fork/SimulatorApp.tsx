@@ -7,7 +7,6 @@ import { ChevronUp } from "lucide-react";
 import { WebGLCanvas } from "@/components/canvas/WebGLCanvas";
 import { WebGPUCanvas } from "@/components/canvas/WebGPUCanvas";
 import ErrorBoundary from "@/components/debug/ErrorBoundary";
-import { BackToGlobe } from "@/components/fork/BackToGlobe";
 import { DebugHooks } from "@/components/fork/DebugHooks";
 import { TestObjectOverlay } from "@/components/fork/TestObjectOverlay";
 import { TestObjectPanel } from "@/components/fork/TestObjectPanel";
@@ -112,7 +111,7 @@ export const SimulatorApp = ({
 }: {
   /**
    * Slug of a real black hole to open locked to (spec §6.4), supplied by the
-   * `/blackhole/{name}/` routes. Undefined on the bare `/blackhole/` route,
+   * `/{name}/` routes. Undefined on the bare `/` route,
    * which opens on the synthetic mass presets instead.
    */
   initialObjectId?: string;
@@ -240,13 +239,13 @@ export const SimulatorApp = ({
   // Phase 7: URL hash state for shareable simulation links
   useUrlState(params, setParams);
 
-  // wiki-globe fork (spec §1.8): the mass preset changes no pixels — the
+  // Spec §1.8: the mass preset changes no pixels — the
   // render is mass-invariant — only what the numbers mean and how fast the
   // clock should run.
   const [massPresetId, setMassPresetId] = useState(DEFAULT_MASS_PRESET);
 
   // §6.4: a named object with cited parameters, or null for the generic
-  // simulator. `/blackhole/{name}/` supplies the initial value; an unknown
+  // simulator. `/{name}/` supplies the initial value; an unknown
   // slug resolves to null and simply opens the generic simulator rather than
   // erroring, because a stale bookmark should still show a black hole.
   const [realObjectId, setRealObjectId] = useState<string | null>(
@@ -265,7 +264,7 @@ export const SimulatorApp = ({
     ? matchesLockedParameters(realObject, params.spin)
     : false;
 
-  // wiki-globe fork: keep the physics engine's metric on the UI's mass and
+  // Keep the physics engine's metric on the UI's mass and
   // spin.
   //
   // This used to happen only inside `usePhysicsState`, a useMemo in
@@ -284,7 +283,7 @@ export const SimulatorApp = ({
     physicsBridge.updateParameters(params.mass, params.spin);
   }, [params.mass, params.spin]);
 
-  // wiki-globe fork (spec §1.5): dropped test object.
+  // Spec §1.5: dropped test object.
   const testObject = useTestObject(
     params.mass,
     massPreset.solarMasses,
@@ -502,7 +501,6 @@ export const SimulatorApp = ({
         <CompatibilityHUD />
       )}
 
-      <BackToGlobe />
       <DebugHooks
         params={params}
         setParams={setParams}
@@ -804,8 +802,7 @@ BibTeX:
   title = {Interactive Kerr Metric Black Hole Simulation Engine},
   year = {2026},
   howpublished = {Software, MIT licence},
-  note = {Original: https://github.com/steeltroops-ai/blackhole-simulation;
-          this deployment: https://wikiglo.be/blackhole}
+  note = {https://github.com/steeltroops-ai/blackhole-simulation}
 }
               `}
             </pre>
@@ -1100,9 +1097,7 @@ BibTeX:
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              /* pt is enlarged relative to upstream to clear the fork's
-                 persistent "back to Wiki Globe" pill in the same corner. */
-              className="absolute top-0 left-0 w-full p-4 pt-14 md:p-8 md:pt-16 flex justify-between items-start z-50 pointer-events-none"
+              className="absolute top-0 left-0 w-full p-4 md:p-8 flex justify-between items-start z-50 pointer-events-none"
             >
               {/* SLEEK IDENTITY HUD */}
               <IdentityHUD

@@ -6,7 +6,7 @@ import {
 } from "@/configs/skybox.config";
 
 /**
- * wiki-globe fork only (spec §6.2). Credit line for the Milky Way panorama,
+ * Spec §6.2. Credit line for the Milky Way panorama,
  * plus the one sentence of honesty the orientation needs.
  *
  * Two project rules meet here. Licensing rule #4 says a new texture gets an

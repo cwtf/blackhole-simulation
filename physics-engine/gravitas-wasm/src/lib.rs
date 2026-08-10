@@ -657,7 +657,7 @@ impl PhysicsEngine {
 }
 
 // ===========================================================================
-// wiki-globe fork: dropped test object (spec §1.5 / §1.6).
+// Dropped test object (spec §1.5 / §1.6).
 //
 // Kept in its own impl block so the whole addition is append-only and an
 // upstream merge cannot conflict inside the original block.

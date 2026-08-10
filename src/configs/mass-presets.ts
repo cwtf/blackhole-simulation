@@ -1,7 +1,7 @@
 /**
  * Mass presets and physical-unit conversion (spec §1.8, §1.9).
  *
- * wiki-globe fork. The renderer is mass-invariant: everything is computed in
+ * The renderer is mass-invariant: everything is computed in
  * geometric units with G = c = M = 1, so the *picture* does not change with
  * the preset at all. What changes is what the numbers mean — kilometres,
  * seconds, kelvin, and how violently the tides pull. This module is that

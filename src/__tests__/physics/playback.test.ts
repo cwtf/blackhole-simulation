@@ -12,7 +12,7 @@ import {
 } from "@/physics/playback";
 import { comfortSpeed, findPreset, timeUnitSeconds } from "@/configs/mass-presets";
 
-/** wiki-globe fork, spec §1.9. */
+/** Spec §1.9. */
 
 describe("speed slider mapping", () => {
   it("spans 1e-5x to 1e6x", () => {

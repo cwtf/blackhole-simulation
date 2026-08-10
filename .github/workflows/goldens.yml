@@ -18,7 +18,7 @@ jobs:
     env:
       CARGO_BUILD_JOBS: "1"
       RUSTFLAGS: "-C target-feature=+bulk-memory"
-      SHADER_CHECK_BASE_URL: http://127.0.0.1:3000/blackhole
+      SHADER_CHECK_BASE_URL: http://127.0.0.1:3000
     steps:
       - uses: actions/checkout@v4
 

@@ -1,6 +1,6 @@
 //! Spec §4 verification targets for the dropped test object (§1.5).
 //!
-//! wiki-globe fork. Every check here is a quantitative target from the spec
+//! Every check here is a quantitative target from the spec
 //! rather than a regression snapshot, so a failure means the physics is wrong,
 //! not that a number moved.
 //!

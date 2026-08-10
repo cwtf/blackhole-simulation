@@ -7,7 +7,7 @@
       "uncertainty is one of: measured (a published value with a real error bar), contested (published values disagree beyond their stated errors), unconstrained (no measurement worth quoting; the value is a plausible placeholder chosen so the renderer has something to draw).",
       "spin is the dimensionless Kerr parameter a* = Jc/GM^2, always in [0, 1) here — every object listed is prograde or unconstrained, so no negative (retrograde) values appear.",
       "inclinationDeg is the viewing angle of the accretion flow: 0 is face-on (looking down the spin axis), 90 is edge-on. For the X-ray binaries this is the orbital inclination, which is not necessarily the inner-disk inclination; for M87* it is the jet axis angle. That distinction is stated per object in the inclination source string.",
-      "raDeg/decDeg are J2000 in degrees and exist for milestone 11 (sky dots on the globe), not for the simulator. Positions are direction-only: nothing is ever placed at a true distance.",
+      "raDeg/decDeg are J2000 in degrees. Positions are direction-only: nothing is ever placed at a true distance.",
       "distanceKpc is kiloparsecs. Multiply by 3261.564 for light-years."
     ]
   },

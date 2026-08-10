@@ -8,7 +8,7 @@ import {
 import { fragmentShaderSource } from "@/shaders/blackhole/fragment.glsl";
 
 /**
- * wiki-globe fork, spec §1.6: the free camera may be flown all the way to the
+ * Spec §1.6: the free camera may be flown all the way to the
  * horizon, and pushing further hands over to the infalling view rather than
  * stopping dead.
  *

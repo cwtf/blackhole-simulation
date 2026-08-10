@@ -1,18 +1,12 @@
 /** @type {import('next').NextConfig} */
 
-// wiki-globe fork: the simulator ships as a statically exported sub-app served
-// from https://wikiglo.be/blackhole/ by GitHub Pages, not as a Vercel server
-// build. Two consequences drive the config below:
+// The simulator ships as a static export. Two consequences drive the config:
 //
 //   1. `output: "export"` — no server, so `headers()` stops applying at
 //      runtime. COOP/COEP (and therefore SharedArrayBuffer) come from
-//      `public/coi-serviceworker.js` instead; see FORK.md.
+//      `public/coi-serviceworker.js` instead.
 //      The header block is kept for `bun run dev`, where it still works and
 //      gives the SAB path a header-based origin to develop against.
-//   2. `basePath` — every Next-managed URL (_next assets, the worker chunk,
-//      next/image, metadata routes) gains the /blackhole prefix. Plain string
-//      literals do NOT get rewritten, so any new `/foo.png` in app code must
-//      be written with the prefix explicitly.
 const isDev = process.env.NODE_ENV === "development";
 
 const nextConfig = {
@@ -20,10 +14,8 @@ const nextConfig = {
   // config and fast refresh behave as upstream expects.
   ...(isDev ? {} : { output: "export" }),
 
-  basePath: "/blackhole",
-  // Emit `<route>/index.html` so Pages resolves directory URLs without a
-  // rewrite rule. Do not also set assetPrefix: basePath already prefixes
-  // _next assets, and setting both double-prefixes them.
+  // Emit `<route>/index.html` so static hosts resolve directory URLs without a
+  // rewrite rule.
   trailingSlash: true,
 
   // Performance: Enable Gzip compression

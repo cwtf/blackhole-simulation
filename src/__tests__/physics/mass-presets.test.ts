@@ -19,7 +19,7 @@ import {
 } from "@/configs/mass-presets";
 
 /**
- * wiki-globe fork, spec §1.8 / §1.9.
+ * Spec §1.8 / §1.9.
  *
  * The spec states several of these figures outright, so the tests assert
  * against *those* rather than against whatever the implementation produces —

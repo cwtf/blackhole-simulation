@@ -1,7 +1,7 @@
 /**
  * Draggable orbits: the *preview* half (spec §6.3, milestone 9).
  *
- * wiki-globe fork. Everything relativistic about an apsis pair lives in Rust
+ * Everything relativistic about an apsis pair lives in Rust
  * (`physics/apsides.rs`) and is reached through `physicsBridge.solveApsides`.
  * What is here is deliberately only what must run at pointer-move rate:
  *

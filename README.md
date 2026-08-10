@@ -2,11 +2,8 @@
 
 A scientifically accurate, real-time relativistic ray-marching engine for visualizing Kerr black holes at near-extremal spin ($a=0.999$). Built with **Next.js 14**, **WebGL 2.0 (High Compatibility)**, **WebGPU (Performance Roadmap)**, and **Rust (Physics Kernel)**.
 
-This repository is a fork of
-[steeltroops-ai/blackhole-simulation](https://github.com/steeltroops-ai/blackhole-simulation),
-originally created by Mayank Pratap Singh. The fork preserves the upstream Git
-history and MIT license; its additional physics, rendering, deployment, and
-WikiGlobe work is documented in [`FORK.md`](./FORK.md).
+Originally created by Mayank Pratap Singh, this standalone project provides the
+complete simulation, physics engine, and rendering pipeline in one repository.
 
 ---
 
@@ -132,8 +129,11 @@ bun run dev
 The first run can take a few minutes while Rust downloads and compiles its
 dependencies.
 
-Open [http://localhost:3000/blackhole/](http://localhost:3000/blackhole/) in
+Open [http://localhost:3000/](http://localhost:3000/) in
 your browser. Stop the development server with `Ctrl+C`.
+
+For production builds, set `NEXT_PUBLIC_SITE_URL` to the deployed origin so
+canonical URLs and social metadata point to the standalone site.
 
 For subsequent frontend-only development, `bun run dev` is sufficient. When
 working on the Rust engine, install `cargo-watch` once and use the watch mode to
@@ -177,8 +177,8 @@ MIT - Copyright (c) 2026 Mayank / steeltroops-ai.
 - **Sky**: [Milky Way panorama](https://www.eso.org/public/images/eso0932a/) by
   ESO / S. Brunier, CC BY 4.0. The shipped 4096×2048
   `public/textures/milky-way-eso-4k.jpg` was area-averaged in linear light from
-  the 6000×3000 source during the original WikiGlobe integration. It is sampled
+  the 6000×3000 source. It is sampled
   per escaped ray,
   so the sky is genuinely lensed; the galactic plane's 60° tilt relative to the
   accretion disk is a stated styling choice, not a measurement — the two are
-  physically unrelated. See `FORK.md`.
+  physically unrelated.

@@ -1,7 +1,7 @@
 /**
  * Dropped test object: worldline storage and sampling (spec §1.5 / §1.6).
  *
- * wiki-globe fork. The Rust side integrates once and hands back a flat buffer;
+ * The Rust side integrates once and hands back a flat buffer;
  * everything here is read-only interpretation of that one buffer.
  *
  * The central rule from §1.6 and §5: **there is one worldline and two ways to

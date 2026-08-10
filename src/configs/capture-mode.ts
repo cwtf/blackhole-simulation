@@ -1,5 +1,5 @@
 /**
- * Deterministic capture mode (wiki-globe fork).
+ * Deterministic capture mode.
  *
  * The renderer adapts itself to the machine it is running on in two ways:
  *

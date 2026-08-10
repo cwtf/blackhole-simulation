@@ -1,6 +1,6 @@
 //! Spec §6.3 (milestone 9): orbits named by their two turning points.
 //!
-//! wiki-globe fork. The claim being tested is the one the UI makes: drag the
+//! The claim being tested is the one the UI makes: drag the
 //! handles to r_peri and r_apo, and the object actually turns around there.
 //! So most of these integrate the geodesic and measure, rather than checking
 //! the solver against itself.

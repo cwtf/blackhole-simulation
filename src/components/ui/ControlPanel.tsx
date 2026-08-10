@@ -837,9 +837,8 @@ export const ControlPanel = ({
                                 }),
                               )}
                             </div>
-                            {/* wiki-globe fork: the sky is a real photograph
-                                now, so it needs a credit here as well as in
-                                the globe's own attribution block (project
+                            {/* The sky is a real photograph
+                                now, so it needs a visible credit (project
                                 licensing rule #4). The galactic tilt is stated
                                 because it is a styling choice: a hole's spin
                                 axis and the galactic plane are unrelated. */}

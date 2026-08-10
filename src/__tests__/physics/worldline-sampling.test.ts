@@ -10,7 +10,7 @@ import {
 } from "@/physics/worldline";
 
 /**
- * wiki-globe fork: §1.6's sampling contract, in isolation from the renderer.
+ * §1.6's sampling contract, in isolation from the renderer.
  *
  * The buffers here are synthetic so the expected answers are exact — the
  * physics itself is verified on the Rust side

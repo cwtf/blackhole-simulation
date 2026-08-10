@@ -99,7 +99,7 @@ self.onmessage = async (e: MessageEvent) => {
     engine.set_auto_spin(data);
   }
 
-  // wiki-globe fork (spec §1.5): integrate a dropped test object.
+  // Spec §1.5: integrate a dropped test object.
   //
   // Deliberately NOT routed through the SharedArrayBuffer ring. That buffer is
   // a fixed-layout, per-frame telemetry channel; a worldline is computed once
@@ -165,7 +165,7 @@ self.onmessage = async (e: MessageEvent) => {
     return;
   }
 
-  // wiki-globe fork (spec §6.3): classify a pair of apsides without
+  // Spec §6.3: classify a pair of apsides without
   // integrating. Cheap enough to answer while a handle is being dragged, which
   // is the point — the alternative was a TypeScript copy of the solver, and a
   // second implementation of the same physics is how the two drift apart.

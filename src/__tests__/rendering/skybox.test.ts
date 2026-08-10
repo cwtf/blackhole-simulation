@@ -14,7 +14,7 @@ import {
 } from "@/configs/skybox.config";
 
 /**
- * wiki-globe fork, spec §6.2 (milestone 8): the Milky Way sky.
+ * Spec §6.2 (milestone 8): the Milky Way sky.
  *
  * The shader consumes this same module, so asserting against it keeps the
  * rendered sky and these expectations from drifting — the pattern
@@ -91,10 +91,7 @@ describe("equirectangular mapping", () => {
   });
 
   it("matches generate-skybox.ps1's longitude convention", () => {
-    // The globe builds its Cesium cube map from the same panorama with
-    // longitude = atan2(z, x), u = longitude / 2π + 0.5. Both apps must read
-    // the same pixel for the same direction or milestone 11's sky dots will
-    // land in the wrong place.
+    // The panorama uses longitude = atan2(z, x), u = longitude / 2π + 0.5.
     for (const [dir, expected] of [
       [[0, 0, 1] as Vec3, 0.75],
       [[-1, 0, 0] as Vec3, 1.0],

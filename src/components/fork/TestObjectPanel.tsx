@@ -26,8 +26,8 @@ import { RealObjectCard } from "./RealObjectCard";
 /**
  * Drop panel + test-object HUD (spec §1.5, §2.4).
  *
- * wiki-globe fork. Styled in the base's control-panel idiom (liquid glass,
- * mono micro-type) rather than as a wiki-globe sidebar row, since the two apps
+ * Styled in the base's control-panel idiom (liquid glass,
+ * mono micro-type) rather than as a sidebar row.
  * never share a page.
  */
 

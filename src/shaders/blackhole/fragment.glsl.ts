@@ -48,7 +48,7 @@ void main() {
 
     // Camera
     vec3 ro, rd;
-    // wiki-globe fork: photon energy at infinity for this ray, used to shift
+    // Photon energy at infinity for this ray, used to shift
     // the sky in 1st person. 1.0 leaves the 3rd-person path untouched.
     float fpEnergy = 1.0;
     bool firstPerson = u_fp_enabled > 0.5;
@@ -59,7 +59,7 @@ void main() {
         // narrow — the value still has to be wide enough to contain what the
         // frame is there to show.
         //
-        // wiki-globe fork: this was 1.2, giving a 45.2 degree vertical FOV
+        // This was 1.2, giving a 45.2 degree vertical FOV
         // whose *corner* sits at 40.4 degrees. The shadow at the moment of
         // horizon crossing has a half-angle of 42.1 degrees for a fall from
         // far away, so every pixel of the frame — corners included — was
@@ -130,7 +130,7 @@ void main() {
     // that view is to get close to and then through the horizon, so shoving
     // the camera back out would silently prevent the crossing (§1.6).
     //
-    // wiki-globe fork: was 1.5 r_h, which fenced the third-person camera off
+    // Was 1.5 r_h, which fenced the third-person camera off
     // half a horizon radius out and quietly teleported it if it got closer —
     // so the view from just above the horizon, where the shadow swells to fill
     // most of the sky, was unreachable. A static observer exists everywhere
@@ -214,7 +214,7 @@ void main() {
             dt = max(dt, MIN_STEP + farBoost);
             dt = min(dt, MAX_STEP * 2.5);
 
-            // wiki-globe fork (spec §6.1). The cap above is 3.0, so reaching
+            // Spec §6.1. The cap above is 3.0, so reaching
             // MAX_DIST = 10000 would take ~3300 steps against a budget of 256:
             // every escaping ray -- most of the screen -- used to exhaust its
             // whole budget marching through empty space and never actually
@@ -333,7 +333,7 @@ void main() {
 
     // Photon ring.
     //
-    // wiki-globe fork: the additive glow that used to live here has been
+    // The additive glow that used to live here has been
     // REMOVED. It painted a white rim wherever a ray happened to end near
     // r_ph, as exp(-|length(p) - rph| * 40) plus a higher-order term keyed on
     // the winding count.

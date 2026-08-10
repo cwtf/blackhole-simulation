@@ -8,11 +8,12 @@ import {
   formatDistanceLightYears,
   formatSolarMasses,
 } from "@/configs/real-black-holes";
+import { SITE_URL } from "@/configs/deployment.config";
 
 /**
- * Per-object simulator routes (spec §6.4): `/blackhole/sgr-a-star/` and so on.
+ * Per-object simulator routes (spec §6.4): `/sgr-a-star/` and so on.
  *
- * wiki-globe fork. Under `output: "export"` this dynamic segment is not
+ * Under `output: "export"` this dynamic segment is not
  * dynamic at all — `generateStaticParams` enumerates the presets and Next
  * emits one directory of static HTML each, which is the only thing GitHub
  * Pages can serve. `dynamicParams = false` makes that explicit: a slug that
@@ -49,7 +50,7 @@ export function generateMetadata({
   return {
     title,
     description,
-    alternates: { canonical: `https://wikiglo.be/blackhole/${o.id}/` },
+    alternates: { canonical: `${SITE_URL}/${o.id}/` },
     openGraph: { title, description, type: "website" },
   };
 }

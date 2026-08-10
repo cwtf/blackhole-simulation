@@ -12,7 +12,7 @@ import {
 } from "@/configs/jet.config";
 
 /**
- * wiki-globe fork: the §4 jet verification targets, as unit tests.
+ * The §4 jet verification targets, as unit tests.
  *
  * The shader consumes JET_SHADER_CONSTANTS, so asserting on the same module
  * keeps the rendered physics and these expectations from drifting. What cannot

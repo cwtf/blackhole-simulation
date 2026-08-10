@@ -23,7 +23,7 @@ export function usePhysicsState(params: SimulationParams): PhysicsState {
     // Spin is now directly in physics units [-1, 1]
     const normalizedSpin = Math.max(-1, Math.min(1, params.spin));
 
-    // wiki-globe fork: record the parameters whether or not the engine is up.
+    // Record the parameters whether or not the engine is up.
     // The `isReady()` gate that used to be here meant nothing was recorded
     // during startup, and since this runs in a useMemo it did not run again
     // until `params` changed — so the engine kept the hard-coded spin it was

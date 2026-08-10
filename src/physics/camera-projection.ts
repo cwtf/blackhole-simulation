@@ -1,7 +1,7 @@
 /**
  * World → screen projection matching the fragment shader's camera exactly.
  *
- * wiki-globe fork (spec §1.6). The test object is drawn as a 2D overlay rather
+ * Spec §1.6. The test object is drawn as a 2D overlay rather
  * than inside the ray-marcher, so its marker only lands on the right pixel if
  * this reproduces the shader's camera construction term for term. From the
  * fallback branch of `fragment.glsl.ts`:
@@ -123,7 +123,7 @@ export function projectToScreen(
 /**
  * Inverse of {@link projectToScreen} onto the **equatorial plane** `y = 0`.
  *
- * wiki-globe fork (spec §6.3): a dragged apsis handle is a point on the disk
+ * Spec §6.3: a dragged apsis handle is a point on the disk
  * plane, so a pixel maps to a unique world point — cast the camera ray through
  * that pixel and intersect it with `y = 0`.
  *

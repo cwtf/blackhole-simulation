@@ -8,7 +8,7 @@ import { peakDiskTemperatureK, MASS_PRESETS } from "@/configs/mass-presets";
 import { REAL_BLACK_HOLES } from "@/configs/real-black-holes";
 
 /**
- * wiki-globe fork: the disk is now rendered at the temperature the UI claims
+ * The disk is now rendered at the temperature the UI claims
  * it has, in physically correct colour.
  *
  * The shader itself cannot be unit-tested here (it is a GLSL string compiled
@@ -16,7 +16,7 @@ import { REAL_BLACK_HOLES } from "@/configs/real-black-holes";
  * claim from the JavaScript side: the normalisation constant that makes
  * `u_disk_temp` mean "peak temperature", and the parameter plumbing that feeds
  * the physical value into it. The rendered colour itself is verified against a
- * real frame — see the milestone-10 notes in FORK.md.
+ * real frame.
  */
 
 /** The shader's radial profile, in JS, for checking its normalisation. */
