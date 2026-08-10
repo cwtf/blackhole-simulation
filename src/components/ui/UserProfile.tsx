@@ -39,8 +39,10 @@ export const UserProfile = () => {
                 <div className="absolute inset-0 liquid-glass-highlight pointer-events-none" />
 
                 <span className="relative z-10 text-[11px] text-white/90 font-medium tracking-wide">
-                  Built by{" "}
-                  <span className="font-bold text-white">Mayank &amp; cwtf</span>
+                  Original by Mayank ·{" "}
+                  <span className="font-bold text-white">
+                    fork maintained by cwtf
+                  </span>
                 </span>
               </div>
             </motion.div>

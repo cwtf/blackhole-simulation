@@ -56,12 +56,9 @@ export const metadata: Metadata = {
     "M87*",
     "Interstellar Physics",
   ],
-  authors: [
-    { name: "Mayank Pratap Singh" },
-    { name: "cwtf", url: "https://github.com/cwtf" },
-  ],
-  creator: "Mayank Pratap Singh and cwtf",
-  publisher: "Mayank Pratap Singh and cwtf",
+  authors: [{ name: "Mayank Pratap Singh" }],
+  creator: "Mayank Pratap Singh",
+  publisher: "Mayank Pratap Singh",
   applicationName: "Blackhole Simulation",
   category: "science",
   classification: "Educational Simulation",
@@ -116,6 +113,7 @@ export const metadata: Metadata = {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-title": "Black Hole Simulation",
     "application-name": "Black Hole Simulation",
+    "fork-maintainer": "cwtf (https://github.com/cwtf)",
     "msapplication-TileColor": "#000000",
     "msapplication-tap-highlight": "no",
   },
@@ -154,22 +152,20 @@ const softwareAppSchema = {
   ],
   description:
     "Real-time browser simulation of a Kerr black hole. Numerically integrates null geodesics in Boyer-Lindquist and Kerr-Schild coordinates, renders gravitational lensing, accretion disk emission, and relativistic Doppler beaming via GPU ray-marching.",
-  author: [
-    {
-      "@type": "Person",
-      name: "Mayank Pratap Singh",
-      url: "https://steeltroops.vercel.app",
-      sameAs: [
-        "https://github.com/steeltroops-ai",
-        "https://twitter.com/steeltroops_ai",
-      ],
-    },
-    {
-      "@type": "Person",
-      name: "cwtf",
-      url: "https://github.com/cwtf",
-    },
-  ],
+  author: {
+    "@type": "Person",
+    name: "Mayank Pratap Singh",
+    url: "https://steeltroops.vercel.app",
+    sameAs: [
+      "https://github.com/steeltroops-ai",
+      "https://twitter.com/steeltroops_ai",
+    ],
+  },
+  maintainer: {
+    "@type": "Person",
+    name: "cwtf",
+    url: "https://github.com/cwtf",
+  },
 };
 
 // SOURCE: ScholarlyArticle for the embedded physics-guide section; cites Bardeen 1973, Luminet 1979, Novikov-Thorne 1973 below.
@@ -180,10 +176,7 @@ const scholarlyArticleSchema = {
     "Real-Time Visualization of the Kerr Metric in Browser-Based Environments",
   description:
     "A technical study on implementing general relativistic ray tracing using symplectic integrators in WebGL/WebGPU.",
-  author: [
-    { "@type": "Person", name: "Mayank Pratap Singh" },
-    { "@type": "Person", name: "cwtf", url: "https://github.com/cwtf" },
-  ],
+  author: { "@type": "Person", name: "Mayank Pratap Singh" },
   keywords: "Kerr Metric, General Relativity, Black Hole, Ray Tracing, WebGPU",
   url: `${SITE_URL}#physics-guide`,
   citation: [
@@ -200,18 +193,15 @@ const techArticleSchema = {
   headline: "Visualizing the Kerr Metric: A Real-Time Simulation",
   alternativeHeadline: "Interactive Black Hole Physics Engine",
   image: `${SITE_URL}/opengraph-image.jpg`,
-  author: [
-    {
-      "@type": "Person",
-      name: "Mayank Pratap Singh",
-      url: "https://steeltroops.vercel.app",
-      sameAs: [
-        "https://github.com/steeltroops-ai",
-        "https://twitter.com/steeltroops_ai",
-      ],
-    },
-    { "@type": "Person", name: "cwtf", url: "https://github.com/cwtf" },
-  ],
+  author: {
+    "@type": "Person",
+    name: "Mayank Pratap Singh",
+    url: "https://steeltroops.vercel.app",
+    sameAs: [
+      "https://github.com/steeltroops-ai",
+      "https://twitter.com/steeltroops_ai",
+    ],
+  },
   genre: "Astrophysics Simulation",
   keywords: "black hole, kerr metric, general relativity, accretion disk",
   publisher: {
@@ -364,10 +354,7 @@ const datasetSchema = {
   name: "Kerr Metric Geodesic Integration Dataset",
   description:
     "A comprehensive dataset of null and timelike geodesics computed within the Kerr spacetime manifold across varying spin parameters (a=0 to a=0.998). Includes effective potential calculations and orbital frequency data.",
-  creator: [
-    { "@type": "Person", name: "Mayank Pratap Singh" },
-    { "@type": "Person", name: "cwtf", url: "https://github.com/cwtf" },
-  ],
+  creator: { "@type": "Person", name: "Mayank Pratap Singh" },
   license: "https://opensource.org/licenses/MIT",
   keywords: [
     "General Relativity",
@@ -390,10 +377,7 @@ const researchProjectSchema = {
   name: "Kerr Metric Spacetime Simulation Lab",
   description:
     "Open-source research-grade visualization of relativistic phenomena in rotating black holes: gravitational lensing, frame dragging, photon ring, accretion disk radiative transfer.",
-  author: [
-    { "@id": "https://steeltroops.vercel.app/#person" },
-    { "@type": "Person", name: "cwtf", url: "https://github.com/cwtf" },
-  ],
+  author: { "@id": "https://steeltroops.vercel.app/#person" },
 };
 
 // SOURCE: schema.org/Service. Provider is real Person; serviceType is descriptive, not metric-claiming.
@@ -549,10 +533,12 @@ const sourceCodeSchema = {
   codeRepository: "https://github.com/cwtf/blackhole-simulation",
   programmingLanguage: ["TypeScript", "Rust", "WGSL", "GLSL"],
   license: "https://opensource.org/licenses/MIT",
-  author: [
-    { "@id": "https://steeltroops.vercel.app/#person" },
-    { "@type": "Person", name: "cwtf", url: "https://github.com/cwtf" },
-  ],
+  author: { "@id": "https://steeltroops.vercel.app/#person" },
+  maintainer: {
+    "@type": "Person",
+    name: "cwtf",
+    url: "https://github.com/cwtf",
+  },
 };
 
 export default function RootLayout({

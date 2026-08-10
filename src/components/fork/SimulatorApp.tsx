@@ -798,17 +798,17 @@ export const SimulatorApp = ({
               {`
 BibTeX:
 @misc{blackhole_sim_2026,
-  author = {Singh, M. P. and cwtf},
+  author = {Singh, M. P.},
   title = {Interactive Kerr Metric Black Hole Simulation Engine},
   year = {2026},
   howpublished = {Software, MIT licence},
-  note = {https://github.com/cwtf/blackhole-simulation}
+  note = {Fork maintained by cwtf; https://github.com/cwtf/blackhole-simulation}
 }
               `}
             </pre>
             <p>
-              APA: Singh, M. P., &amp; cwtf. (2026). <i>Interactive Black Hole Simulation</i>{" "}
-              [Computer software]. Retrieved from
+              APA: Singh, M. P. (2026). <i>Interactive Black Hole Simulation</i>{" "}
+              [Computer software; fork maintained by cwtf]. Retrieved from
               https://github.com/cwtf/blackhole-simulation
             </p>
           </div>

@@ -2,9 +2,9 @@
 
 A scientifically accurate, real-time relativistic ray-marching engine for visualizing Kerr black holes at near-extremal spin ($a=0.999$). Built with **Next.js 14**, **WebGL 2.0 (High Compatibility)**, **WebGPU (Performance Roadmap)**, and **Rust (Physics Kernel)**.
 
-Originally created by Mayank Pratap Singh and maintained by
-[cwtf](https://github.com/cwtf), this standalone project provides the complete
-simulation, physics engine, and rendering pipeline in one repository.
+Originally created by Mayank Pratap Singh. This fork is maintained by
+[cwtf](https://github.com/cwtf) and provides the complete simulation, physics
+engine, and rendering pipeline in one repository.
 
 ---
 
