@@ -145,7 +145,6 @@ export interface UseTestObject {
   /** Signed media transport rate: negative rewinds, positive advances. */
   transportRate: number;
   stepTransport: (direction: -1 | 1) => void;
-  playForward: () => void;
   /** Normalized proper-time position along the integrated trajectory. */
   trajectoryProgress: number;
   seekTrajectory: (progress: number) => void;
@@ -426,11 +425,6 @@ export function useTestObject(
     setPaused(false);
   }, []);
 
-  const playForward = useCallback(() => {
-    setTransportRate(1);
-    setPaused(false);
-  }, []);
-
   // Playback clock. Advances the DISTANT OBSERVER's time, which is what the
   // 3rd-person view is parameterised by (§1.6).
   useEffect(() => {
@@ -683,7 +677,6 @@ export function useTestObject(
     },
     transportRate,
     stepTransport,
-    playForward,
     trajectoryProgress,
     seekTrajectory,
     crossesEventHorizon,

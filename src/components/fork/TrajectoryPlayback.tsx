@@ -17,7 +17,6 @@ export function TrajectoryPlayback({ object }: { object: UseTestObject }) {
     speed,
     transportRate,
     stepTransport,
-    playForward,
     trajectoryProgress,
     seekTrajectory,
     crossesEventHorizon,
@@ -101,9 +100,9 @@ export function TrajectoryPlayback({ object }: { object: UseTestObject }) {
 
           <TransportButton
             label={paused ? "Play" : "Pause"}
-            title={paused ? "Play forward" : "Pause"}
+            title={paused ? "Resume playback" : "Pause"}
             active={!paused}
-            onClick={() => (paused ? playForward() : setPaused(true))}
+            onClick={() => setPaused(!paused)}
           >
             {paused ? (
               <Play className="h-4 w-4" fill="currentColor" />

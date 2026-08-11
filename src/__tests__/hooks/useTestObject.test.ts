@@ -207,8 +207,6 @@ describe("horizon handover playback", () => {
     expect(result.current.transportRate).toBe(1);
     act(() => result.current.stepTransport(1));
     expect(result.current.transportRate).toBe(2);
-    act(() => result.current.playForward());
-    expect(result.current.transportRate).toBe(1);
     expect(result.current.paused).toBe(false);
   });
 

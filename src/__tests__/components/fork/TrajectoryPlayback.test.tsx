@@ -31,7 +31,6 @@ function playbackObject(overrides: Partial<UseTestObject> = {}): UseTestObject {
     speed: 1,
     transportRate: 1,
     stepTransport: vi.fn(),
-    playForward: vi.fn(),
     trajectoryProgress: 0.5,
     seekTrajectory: vi.fn(),
     crossesEventHorizon: true,
@@ -76,10 +75,11 @@ describe("trajectory playback", () => {
     expect(object.setPaused).toHaveBeenCalledWith(true);
   });
 
-  it("uses the play control to resume forward playback", () => {
+  it("uses the play control to resume the current direction", () => {
     const object = playbackObject({ paused: true, transportRate: -4 });
     render(<TrajectoryPlayback object={object} />);
     fireEvent.click(screen.getByLabelText("Play"));
-    expect(object.playForward).toHaveBeenCalledOnce();
+    expect(object.setPaused).toHaveBeenCalledWith(false);
+    expect(object.transportRate).toBe(-4);
   });
 });
