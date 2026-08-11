@@ -12,6 +12,7 @@ import { TestObjectOverlay } from "@/components/fork/TestObjectOverlay";
 import { TestObjectPanel } from "@/components/fork/TestObjectPanel";
 import { ApsisHandles } from "@/components/fork/ApsisHandles";
 import { SingularityCard } from "@/components/fork/SingularityCard";
+import { TrajectoryPlayback } from "@/components/fork/TrajectoryPlayback";
 import { useTestObject, type UseTestObject } from "@/hooks/useTestObject";
 import { physicsBridge } from "@/engine/physics-bridge";
 import { interiorDropOptions, type DropPresetName } from "@/physics/worldline";
@@ -608,6 +609,9 @@ export const SimulatorApp = ({
           mass={params.mass}
           spin={params.spin}
         />
+        {showUI && !isInfoExpanded && (
+          <TrajectoryPlayback object={testObject} />
+        )}
 
         {/* ENTERPRISE-GRADE SEMANTIC CONTENT LAYER (High-Density Keyword Hub) */}
         <section className="sr-only" aria-hidden="false" id="physics-guide">

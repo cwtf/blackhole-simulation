@@ -17,6 +17,9 @@
 export const MIN_LOG_SPEED = -5;
 export const MAX_LOG_SPEED = 6;
 
+/** Media-style transport multipliers reached by repeated seek-button presses. */
+export const MAX_TRANSPORT_RATE = 16;
+
 /** Relative tolerance within which the slider snaps to a labelled detent. */
 const DETENT_TOLERANCE = 0.04;
 
@@ -78,7 +81,8 @@ export function formatSpeed(speed: number, paused: boolean): string {
   if (speed === 0) return "0×";
   if (speed >= 0.01 && speed < 10000) {
     // Trim to something readable without exponent noise.
-    const rounded = speed >= 100 ? Math.round(speed) : Number(speed.toPrecision(3));
+    const rounded =
+      speed >= 100 ? Math.round(speed) : Number(speed.toPrecision(3));
     return `${rounded}×`;
   }
   return `${speed.toExponential(1)}×`;
@@ -99,4 +103,27 @@ export function geometricRatePerSecond(
 ): number {
   if (!(timeUnitSeconds > 0)) return 0;
   return speed / timeUnitSeconds;
+}
+
+/** Advance rewind/fast-forward through 1x, 2x, 4x, 8x, and 16x. */
+export function stepTransportRate(current: number, direction: -1 | 1): number {
+  if (Math.sign(current) !== direction) return direction;
+  return (
+    direction * Math.min(MAX_TRANSPORT_RATE, Math.max(1, Math.abs(current) * 2))
+  );
+}
+
+/**
+ * Slow playback around the event horizon without changing the user's selected
+ * base speed. Full speed resumes half a horizon radius away on either side.
+ */
+export function horizonSlowdownFactor(
+  radius: number,
+  horizonRadius: number,
+): number {
+  if (!(horizonRadius > 0) || !Number.isFinite(radius)) return 1;
+  const distance = Math.abs(radius - horizonRadius) / horizonRadius;
+  const t = Math.min(1, distance / 0.5);
+  const smooth = t * t * (3 - 2 * t);
+  return 0.15 + 0.85 * smooth;
 }

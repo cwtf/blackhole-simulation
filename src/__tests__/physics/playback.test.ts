@@ -2,15 +2,22 @@ import { describe, it, expect } from "vitest";
 
 import {
   MAX_LOG_SPEED,
+  MAX_TRANSPORT_RATE,
   MIN_LOG_SPEED,
   detents,
   formatSpeed,
   geometricRatePerSecond,
+  horizonSlowdownFactor,
   sliderToSpeed,
   snapToDetent,
   speedToSlider,
+  stepTransportRate,
 } from "@/physics/playback";
-import { comfortSpeed, findPreset, timeUnitSeconds } from "@/configs/mass-presets";
+import {
+  comfortSpeed,
+  findPreset,
+  timeUnitSeconds,
+} from "@/configs/mass-presets";
 
 /** Spec §1.9. */
 
@@ -130,5 +137,27 @@ describe("HUD formatting", () => {
   it("falls back to exponent notation at the extremes", () => {
     expect(formatSpeed(1.5e-4, false)).toMatch(/e/);
     expect(formatSpeed(1e5, false)).toMatch(/e/);
+  });
+});
+
+describe("media transport", () => {
+  it("accelerates repeated presses in the same direction", () => {
+    expect(stepTransportRate(1, 1)).toBe(2);
+    expect(stepTransportRate(2, 1)).toBe(4);
+    expect(stepTransportRate(8, 1)).toBe(16);
+    expect(stepTransportRate(16, 1)).toBe(MAX_TRANSPORT_RATE);
+    expect(stepTransportRate(-4, -1)).toBe(-8);
+  });
+
+  it("starts at 1x when changing direction", () => {
+    expect(stepTransportRate(8, -1)).toBe(-1);
+    expect(stepTransportRate(-8, 1)).toBe(1);
+  });
+
+  it("slows smoothly at the event horizon and recovers away from it", () => {
+    expect(horizonSlowdownFactor(2, 2)).toBeCloseTo(0.15, 12);
+    expect(horizonSlowdownFactor(2.5, 2)).toBeGreaterThan(0.15);
+    expect(horizonSlowdownFactor(3, 2)).toBe(1);
+    expect(horizonSlowdownFactor(1, 2)).toBe(1);
   });
 });

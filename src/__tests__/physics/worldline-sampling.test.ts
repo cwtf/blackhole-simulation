@@ -64,6 +64,15 @@ describe("worldline sampling", () => {
     expect(w.count).toBe(7);
     // Index 4 is the last with finite t_far; 5 and 6 are inside the horizon.
     expect(w.lastVisibleIndex).toBe(4);
+    expect(w.totalFarTime).toBeCloseTo(40, 5);
+  });
+
+  it("locates the event-horizon crossing in proper time", () => {
+    const w = infall();
+    const crossing = w.horizonCrossingProperTime(2);
+    expect(crossing).toBeCloseTo(4 + 1 / 3, 5);
+    expect(w.properTimeInsideHorizon(2)).toBeCloseTo(2 - 1 / 3, 5);
+    expect(w.horizonCrossingProperTime(0.1)).toBeNull();
   });
 
   it("interpolates linearly by proper time", () => {

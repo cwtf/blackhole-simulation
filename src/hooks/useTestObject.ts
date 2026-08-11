@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { physicsBridge, type ApsidesSolution } from "@/engine/physics-bridge";
 import {
@@ -14,7 +14,11 @@ import {
   tetradToCartesian,
   type CartesianLeg,
 } from "@/physics/first-person";
-import { geometricRatePerSecond } from "@/physics/playback";
+import {
+  geometricRatePerSecond,
+  horizonSlowdownFactor,
+  stepTransportRate,
+} from "@/physics/playback";
 import { suitStrain } from "@/physics/tidal";
 import {
   comfortSpeed,
@@ -138,6 +142,19 @@ export interface UseTestObject {
   /** Playback multiplier: simulated seconds per wall-clock second (§1.9). */
   speed: number;
   setSpeed: (s: number) => void;
+  /** Signed media transport rate: negative rewinds, positive advances. */
+  transportRate: number;
+  stepTransport: (direction: -1 | 1) => void;
+  playForward: () => void;
+  /** Normalized proper-time position along the integrated trajectory. */
+  trajectoryProgress: number;
+  seekTrajectory: (progress: number) => void;
+  /** True only when this integrated trajectory actually crosses the horizon. */
+  crossesEventHorizon: boolean;
+  /** Normalized proper-time position of the event-horizon crossing. */
+  eventHorizonProgress: number | null;
+  /** Automatic multiplier applied around the horizon, from 0.15 to 1. */
+  horizonSlowdown: number;
   /** Per-preset comfort speed, the labelled default detent. */
   comfort: number;
   view: ViewMode;
@@ -215,6 +232,7 @@ export function useTestObject(
   // hole. Explicitly set speeds survive a preset change only until the user
   // has not touched the slider.
   const [speed, setSpeed] = useState(() => comfortSpeed(solarMasses));
+  const [transportRate, setTransportRate] = useState(1);
   const speedTouched = useRef(false);
 
   useEffect(() => {
@@ -223,6 +241,8 @@ export function useTestObject(
 
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef<number>(0);
+  const farTimeRef = useRef(0);
+  const properTimeRef = useRef(0);
   const dropRequestRef = useRef(0);
 
   // §6.3: the dragged pair. Kept here rather than in the panel so the overlay
@@ -281,6 +301,9 @@ export function useTestObject(
       setWorldline(null);
       setFarTime(0);
       setProperTime(0);
+      farTimeRef.current = 0;
+      properTimeRef.current = 0;
+      setTransportRate(1);
       setPaused(startPaused);
       setLook({ yaw: 0, pitch: 0 });
 
@@ -350,6 +373,9 @@ export function useTestObject(
     setError(null);
     setFarTime(0);
     setProperTime(0);
+    farTimeRef.current = 0;
+    properTimeRef.current = 0;
+    setTransportRate(1);
     setPaused(false);
     setLook({ yaw: 0, pitch: 0 });
     // Riding an object that no longer exists is not a state the UI should be
@@ -368,6 +394,43 @@ export function useTestObject(
     }));
   }, []);
 
+  const spinMagnitude = Math.min(1, Math.abs(spin));
+  const eventHorizonRadius =
+    mass * (1 + Math.sqrt(Math.max(0, 1 - spinMagnitude * spinMagnitude)));
+  const horizonCrossingTime = useMemo(
+    () => worldline?.horizonCrossingProperTime(eventHorizonRadius) ?? null,
+    [eventHorizonRadius, worldline],
+  );
+  const crossesEventHorizon = horizonCrossingTime !== null;
+
+  const seekTrajectory = useCallback(
+    (progress: number) => {
+      if (!worldline || worldline.count === 0) return;
+      const clamped = Math.min(1, Math.max(0, progress));
+      const nextProperTime = clamped * worldline.totalProperTime;
+      const point = worldline.sampleByProperTime(nextProperTime);
+      const nextFarTime = Number.isFinite(point.tFar)
+        ? point.tFar
+        : worldline.totalFarTime;
+
+      properTimeRef.current = nextProperTime;
+      farTimeRef.current = nextFarTime;
+      setProperTime(nextProperTime);
+      setFarTime(nextFarTime);
+    },
+    [worldline],
+  );
+
+  const stepTransport = useCallback((direction: -1 | 1) => {
+    setTransportRate((current) => stepTransportRate(current, direction));
+    setPaused(false);
+  }, []);
+
+  const playForward = useCallback(() => {
+    setTransportRate(1);
+    setPaused(false);
+  }, []);
+
   // Playback clock. Advances the DISTANT OBSERVER's time, which is what the
   // 3rd-person view is parameterised by (§1.6).
   useEffect(() => {
@@ -383,15 +446,52 @@ export function useTestObject(
       // and never touches the physics. The worldline was integrated once at
       // drop time; this only changes which sample gets looked up, so the same
       // drop replayed at any speed traces an identical trajectory.
-      const rate = geometricRatePerSecond(speed, timeUnitSeconds(solarMasses));
-
-      // Both clocks advance from the same wall-clock tick, but they index the
-      // one stored worldline by different parameters (§1.6). Advancing both
-      // keeps a view switch continuous rather than jumping.
-      setFarTime((prev) => prev + dt * rate * OBSERVER_CLOCK_RATIO);
-      setProperTime((prev) =>
-        Math.min(prev + dt * rate, worldline.totalProperTime),
+      const baseRate = geometricRatePerSecond(
+        speed,
+        timeUnitSeconds(solarMasses),
       );
+      const currentPoint = worldline.sampleByProperTime(properTimeRef.current);
+      const slowdown =
+        view === "first" && crossesEventHorizon
+          ? horizonSlowdownFactor(currentPoint.r, eventHorizonRadius)
+          : 1;
+      const delta = dt * baseRate * transportRate * slowdown;
+
+      if (view === "first") {
+        const nextProperTime = Math.min(
+          worldline.totalProperTime,
+          Math.max(0, properTimeRef.current + delta),
+        );
+        const point = worldline.sampleByProperTime(nextProperTime);
+        const nextFarTime = Number.isFinite(point.tFar)
+          ? point.tFar
+          : worldline.totalFarTime;
+        properTimeRef.current = nextProperTime;
+        farTimeRef.current = nextFarTime;
+        setProperTime(nextProperTime);
+        setFarTime(nextFarTime);
+
+        if (
+          (transportRate > 0 && nextProperTime >= worldline.totalProperTime) ||
+          (transportRate < 0 && nextProperTime <= 0)
+        ) {
+          setPaused(true);
+          return;
+        }
+      } else {
+        const nextFarTime = Math.min(
+          worldline.totalFarTime,
+          Math.max(0, farTimeRef.current + delta * OBSERVER_CLOCK_RATIO),
+        );
+        const nextProperTime = Math.min(
+          worldline.totalProperTime,
+          Math.max(0, properTimeRef.current + delta),
+        );
+        farTimeRef.current = nextFarTime;
+        properTimeRef.current = nextProperTime;
+        setFarTime(nextFarTime);
+        setProperTime(nextProperTime);
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -399,7 +499,16 @@ export function useTestObject(
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [worldline, paused, speed, solarMasses]);
+  }, [
+    worldline,
+    paused,
+    speed,
+    solarMasses,
+    view,
+    crossesEventHorizon,
+    eventHorizonRadius,
+    transportRate,
+  ]);
 
   // §1.9: Space toggles pause. Ignored while typing so it cannot hijack a
   // form field.
@@ -432,6 +541,17 @@ export function useTestObject(
     worldline && worldline.count > 0
       ? worldline.sampleByProperTime(properTime)
       : null;
+  const trajectoryProgress = worldline?.totalProperTime
+    ? Math.min(1, Math.max(0, properTime / worldline.totalProperTime))
+    : 0;
+  const eventHorizonProgress =
+    horizonCrossingTime !== null && worldline?.totalProperTime
+      ? horizonCrossingTime / worldline.totalProperTime
+      : null;
+  const horizonSlowdown =
+    view === "first" && crossesEventHorizon && ridePoint
+      ? horizonSlowdownFactor(ridePoint.r, eventHorizonRadius)
+      : 1;
 
   // "Ran out of worldline" is not the same as "reached the singularity". A
   // stable circular orbit exhausts its step budget with the object still
@@ -561,6 +681,14 @@ export function useTestObject(
       speedTouched.current = true;
       setSpeed(s);
     },
+    transportRate,
+    stepTransport,
+    playForward,
+    trajectoryProgress,
+    seekTrajectory,
+    crossesEventHorizon,
+    eventHorizonProgress,
+    horizonSlowdown,
     comfort: comfortSpeed(solarMasses),
     view,
     setView,

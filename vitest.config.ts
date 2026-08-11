@@ -8,7 +8,9 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: [
       "src/**/*.test.ts",
+      "src/**/*.test.tsx",
       "src/__tests__/**/*.test.ts",
+      "src/__tests__/**/*.test.tsx",
       "scripts/__tests__/**/*.test.ts",
     ],
     // Visual regression has its own config (vitest.shader.config.ts) so

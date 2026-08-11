@@ -154,6 +154,26 @@ export class Worldline {
     return this.count > 0 ? this.at(this.count - 1).tau : 0;
   }
 
+  /** Last finite distant-observer timestamp before the event horizon. */
+  get totalFarTime(): number {
+    return this.lastVisibleIndex >= 0 ? this.at(this.lastVisibleIndex).tFar : 0;
+  }
+
+  /** Proper time at which the object first crosses the supplied horizon. */
+  horizonCrossingProperTime(horizonRadius: number): number | null {
+    if (this.count === 0) return null;
+    for (let i = 1; i < this.count; i++) {
+      const prev = this.at(i - 1);
+      const cur = this.at(i);
+      if (prev.r >= horizonRadius && cur.r < horizonRadius) {
+        const span = prev.r - cur.r;
+        const fraction = span > 0 ? (prev.r - horizonRadius) / span : 0;
+        return prev.tau + fraction * (cur.tau - prev.tau);
+      }
+    }
+    return null;
+  }
+
   /**
    * Proper time from crossing the horizon to the end of the worldline.
    *
@@ -170,18 +190,8 @@ export class Worldline {
    * below the precision anything displays.
    */
   properTimeInsideHorizon(horizonRadius: number): number | null {
-    if (this.count === 0) return null;
-    for (let i = 1; i < this.count; i++) {
-      const prev = this.at(i - 1);
-      const cur = this.at(i);
-      if (prev.r >= horizonRadius && cur.r < horizonRadius) {
-        const span = prev.r - cur.r;
-        const frac = span > 0 ? (prev.r - horizonRadius) / span : 0;
-        const tauCross = prev.tau + frac * (cur.tau - prev.tau);
-        return this.totalProperTime - tauCross;
-      }
-    }
-    return null;
+    const crossing = this.horizonCrossingProperTime(horizonRadius);
+    return crossing === null ? null : this.totalProperTime - crossing;
   }
 
   /**

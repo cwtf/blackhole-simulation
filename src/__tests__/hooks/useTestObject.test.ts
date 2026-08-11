@@ -157,7 +157,8 @@ describe("horizon handover playback", () => {
       expect(result.current.reversedInsideHorizon).toBe(expectReversal);
       // Never both.
       expect(
-        result.current.reachedSingularity && result.current.reversedInsideHorizon,
+        result.current.reachedSingularity &&
+          result.current.reversedInsideHorizon,
       ).toBe(false);
     },
   );
@@ -193,5 +194,42 @@ describe("horizon handover playback", () => {
     expect(bridgeMocks.dropTestObject).toHaveBeenCalledWith(
       expect.objectContaining({ r0: 3, innerRadius: 0.01 }),
     );
+  });
+
+  it("steps rewind and fast-forward rates like a media transport", () => {
+    const { result } = renderHook(() => useTestObject(1, 4.154e6, 0.5));
+
+    act(() => result.current.stepTransport(-1));
+    expect(result.current.transportRate).toBe(-1);
+    act(() => result.current.stepTransport(-1));
+    expect(result.current.transportRate).toBe(-2);
+    act(() => result.current.stepTransport(1));
+    expect(result.current.transportRate).toBe(1);
+    act(() => result.current.stepTransport(1));
+    expect(result.current.transportRate).toBe(2);
+    act(() => result.current.playForward());
+    expect(result.current.transportRate).toBe(1);
+    expect(result.current.paused).toBe(false);
+  });
+
+  it("seeks by normalized proper time and keeps the clocks aligned", async () => {
+    const samples = new Float32Array(WORLDLINE_STRIDE * 2);
+    samples[3] = 3;
+    samples[WORLDLINE_STRIDE] = 10;
+    samples[WORLDLINE_STRIDE + 1] = 12;
+    samples[WORLDLINE_STRIDE + 2] = 20;
+    samples[WORLDLINE_STRIDE + 3] = 1;
+    bridgeMocks.dropTestObject.mockResolvedValue({ samples, audit: AUDIT });
+    const { result } = renderHook(() => useTestObject(1, 4.154e6, 0));
+
+    act(() => result.current.drop("radialFall", { r0: 3 }));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    act(() => result.current.seekTrajectory(0.5));
+
+    expect(result.current.properTime).toBeCloseTo(5, 6);
+    expect(result.current.farTime).toBeCloseTo(10, 6);
+    expect(result.current.trajectoryProgress).toBeCloseTo(0.5, 6);
+    expect(result.current.crossesEventHorizon).toBe(true);
+    expect(result.current.eventHorizonProgress).toBeCloseTo(0.5, 6);
   });
 });
