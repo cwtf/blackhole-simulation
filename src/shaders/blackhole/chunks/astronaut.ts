@@ -119,6 +119,18 @@ export const ASTRONAUT_CHUNK = `
     return d;
   }
 
+  // The tide, applied to the body rather than to the light.
+  //
+  // u_fp_strain is (transverse, radial): the closed-form geodesic-deviation
+  // scale factors from physics/tidal.ts, identity until the tidal load passes
+  // what the body can hold together. The radial axis is e3 = z, which
+  // orientFrame defines as inward radial -- so the frame looks *along* the
+  // stretch, and the rider is drawn out away from the eye rather than head to
+  // toe. That is the face-first case, and it is what this frame is.
+  vec3 suit_scale() {
+    return vec3(u_fp_strain.x, u_fp_strain.x, u_fp_strain.y);
+  }
+
   vec3 suit_normal(vec3 p) {
     vec2 e = vec2(0.0015, 0.0);
     return normalize(vec3(
@@ -154,6 +166,8 @@ export const ASTRONAUT_CHUNK = `
   // pixel; the suit is opaque and less than three metres away, so a hit
   // replaces whatever the geodesic march found behind it.
   bool suit_trace(vec3 n, vec4 look, out vec3 col) {
+    vec3 s = suit_scale();
+
     // Every surface of the model lies below the frame's horizon from any eye
     // position the neck pivot can produce. A search over head orientations and
     // ray directions puts the shallowest hit at n.y = -0.174, with the head
@@ -162,22 +176,51 @@ export const ASTRONAUT_CHUNK = `
     // keeps the march off most of the screen -- but the bound is measured, not
     // obvious, and has to be re-measured if the model ever grows upward or the
     // neck lever changes.
-    if (n.y > -0.12) return false;
+    //
+    // Under strain it has to move. Squeezing the transverse axes by s.x while
+    // stretching the radial one by s.y shrinks a hit direction's y component and
+    // grows its z component, so hits migrate toward the frame's horizon by
+    // roughly s.x/s.y. Keeping the unstrained bound would clip the stretched
+    // body off at exactly the moment it becomes the thing worth looking at.
+    float cullY = -0.12 * min(1.0, s.x / max(s.y, 1e-3));
+    if (n.y > cullY) return false;
 
     vec3 eye = suit_eye(look);
-    float t = 0.02;
+
+    // March in the body's *unstrained* space rather than scaling the field.
+    //
+    // A non-uniformly scaled distance field is no longer a distance field: it
+    // over-reports by up to max(s), so the march has to be throttled to the
+    // smallest scale factor and the step count blows up with the squeeze. But an
+    // axis-aligned scale is invertible, so the ray can be carried into the frame
+    // where suit_map is still exact. p = eye + n*t maps to p/s = eye/s + (n/s)*t,
+    // which is a ray with direction n/s; normalising it gives a march parameter
+    // u = t*length(n/s) that steps at full stride against the true SDF. Cost is
+    // identical to the unstrained trace, and there is no overshoot to guard.
+    vec3 dir = n / s;
+    float invLen = length(dir);
+    vec3 dirN = dir / invLen;
+    vec3 eyeU = eye / s;
+
+    float u = 0.02 * invLen;
     vec2 h = vec2(1.0, 0.0);
     bool hit = false;
     for (int i = 0; i < 48; i++) {
-      h = suit_map(eye + n * t);
+      h = suit_map(eyeU + dirN * u);
       if (h.x < 0.002) { hit = true; break; }
-      t += h.x;
-      if (t > 2.8) break;
+      u += h.x;
+      // The bound is in unstrained space, where the model keeps its own size,
+      // so the same 2.8 m reach holds however far the tide draws the body out.
+      if (u > 2.8) break;
     }
     if (!hit) return false;
 
-    vec3 p = eye + n * t;
-    vec3 nrm = suit_normal(p);
+    // Shade in unstrained coordinates -- the fabric stretches with the body, so
+    // its mottling and its ambient occlusion belong to the material, not to the
+    // deformed shape. Only the normal has to come back: a gradient transforms by
+    // the inverse transpose, which for a pure scale is division by s.
+    vec3 p = eyeU + dirN * u;
+    vec3 nrm = normalize(suit_normal(p) / s);
 
     vec3 base = vec3(0.80, 0.80, 0.83);
     float gloss = 0.08;

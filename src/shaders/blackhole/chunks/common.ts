@@ -60,6 +60,17 @@ export const COMMON_CHUNK = `
   // head, not the torso, so the suit stays put while the view swings over it.
   uniform float u_fp_body;
 
+  // Tidal deformation of that suit: (transverse, radial) scale factors, both 1
+  // while the body is still holding itself together.
+  //
+  // The closed-form geodesic-deviation solution from physics/tidal.ts, not a
+  // material model -- past the failure load the pieces stop interacting and each
+  // follows its own geodesic, which is exactly solvable. This is the only place
+  // the mass preset changes a pixel: whether a rider is intact at a given r/r_s
+  // is a question about M, so the render is mass-invariant and the *rider* is
+  // not.
+  uniform vec2 u_fp_strain;
+
   // The real Milky Way panorama (spec §6.2). u_sky_enabled is
   // 0 until the JPEG has been decoded and uploaded, and stays 0 if it fails --
   // the procedural starfield is then the fallback, so the sky is never a void.

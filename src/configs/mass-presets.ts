@@ -12,6 +12,13 @@
  * ISCO periods; 1.5e-4x, 60x, 1e5x for the comfort speeds) and the tests
  * below assert against those rather than against whatever the code happens
  * to produce.
+ *
+ * One exception to "nothing here feeds the shader", added with the suit's
+ * tidal strain: `tidalAccelerationG` is now read by `physics/tidal.ts` to find
+ * the radius at which the body stops holding together, and that radius reaches
+ * the fragment shader as a uniform. The render is still mass-invariant
+ * everywhere else — but the *rider* is not, because whether a person is intact
+ * at a given r/r_s is precisely a question about the mass.
  */
 
 /** Newtonian constant, m^3 kg^-1 s^-2. */

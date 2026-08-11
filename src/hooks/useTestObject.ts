@@ -10,6 +10,7 @@ import {
   type CartesianLeg,
 } from "@/physics/first-person";
 import { geometricRatePerSecond } from "@/physics/playback";
+import { suitStrain } from "@/physics/tidal";
 import {
   comfortSpeed,
   durationToSeconds,
@@ -109,6 +110,14 @@ export interface FirstPersonFrame {
    * well as legible. It can still be switched off for an unobstructed view.
    */
   showBody: boolean;
+  /**
+   * Tidal deformation of the suit as `[transverse, radial]` scale factors, both
+   * 1 until the tide exceeds what the body can hold together (spec §1.6).
+   *
+   * The one quantity in this frame that depends on the mass preset rather than
+   * on r/r_s alone — see `physics/tidal.ts`.
+   */
+  strain: [number, number];
 }
 
 export interface UseTestObject {
@@ -487,6 +496,13 @@ export function useTestObject(
       e3: resolve(legs[axes.forward.index]!, axes.forward.sign),
       look: quaternionFromYawPitch(look.yaw, look.pitch),
       showBody: showSuit,
+      // Depends on solarMasses, not on mass: the failure radius is set by the
+      // tide in SI units, so the same r/r_s is survivable at one scale and not
+      // at another.
+      strain: (() => {
+        const s = suitStrain(ridePoint.r, solarMasses);
+        return [s.transverse, s.radial];
+      })(),
     };
   }
 

@@ -88,6 +88,8 @@ export class WebGLRenderer {
     e3: [number, number, number, number];
     look: [number, number, number, number];
     showBody: boolean;
+    /** Tidal deformation of the suit: [transverse, radial] scale factors. */
+    strain: [number, number];
   } | null = null;
 
   constructor() {}
@@ -476,6 +478,7 @@ export class WebGLRenderer {
         fp.look[3],
       );
       this.uniformBatcher.set1f("u_fp_body", fp.showBody ? 1.0 : 0.0);
+      this.uniformBatcher.set2f("u_fp_strain", fp.strain[0], fp.strain[1]);
     } else {
       this.uniformBatcher.set3f("u_fp_pos", 0.0, 0.0, 0.0);
       this.uniformBatcher.set4f("u_fp_e0", 0.0, 0.0, 0.0, 1.0);
@@ -484,6 +487,8 @@ export class WebGLRenderer {
       this.uniformBatcher.set4f("u_fp_e3", 0.0, 0.0, 1.0, 0.0);
       this.uniformBatcher.set4f("u_fp_look", 0.0, 0.0, 0.0, 1.0);
       this.uniformBatcher.set1f("u_fp_body", 0.0);
+      // Identity, not zero: a zero scale would divide by it in suit_trace.
+      this.uniformBatcher.set2f("u_fp_strain", 1.0, 1.0);
     }
 
     // Set Common Uniforms
