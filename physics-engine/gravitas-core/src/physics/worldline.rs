@@ -39,6 +39,7 @@ use crate::physics::plunge::circular_angular_velocity;
 /// 0.003 M floor, while a genuine breakdown misses it by three orders or more.
 pub const MASS_SHELL_TOLERANCE: f64 = 1e-4;
 
+
 /// One recorded point on the worldline.
 ///
 /// Both clocks are stored so the two camera views can sample the same
@@ -658,17 +659,21 @@ pub fn integrate_worldline(
 
     let m = metric.mass();
     let a = metric.a();
-    let sample_at = |tau: f64, s: &GeodesicState| WorldlineSample {
+    // `u` is passed in rather than derived here: the mass-shell guard below needs
+    // the same four-velocity, and computing it twice per accepted step would put
+    // a second metric inversion on the hot path for nothing.
+    let sample_at = |tau: f64, s: &GeodesicState, u: [f64; 4]| WorldlineSample {
         tau,
         t: s.x[0],
         t_far: distant_observer_time(s.x[0], s.x[1], m, a),
         r: s.x[1],
         theta: s.x[2],
         phi: s.x[3],
-        u: crate::physics::tetrad::four_velocity(s, metric),
+        u,
     };
+    let velocity = |s: &GeodesicState| crate::physics::tetrad::four_velocity(s, metric);
 
-    worldline.samples.push(sample_at(tau, &state));
+    worldline.samples.push(sample_at(tau, &state, velocity(&state)));
 
     // Revolutions swept so far, accumulated on the short arc so a wrap in phi
     // cannot read as a full turn backwards.
@@ -774,7 +779,7 @@ pub fn integrate_worldline(
                 break;
             }
             worldline.end = WorldlineEnd::ReachedTurningPoint;
-            worldline.samples.push(sample_at(tau, &state));
+            worldline.samples.push(sample_at(tau, &state, u));
             break;
         }
 
@@ -814,7 +819,32 @@ pub fn integrate_worldline(
         // `max_steps / max_samples` during the loop assumes the run consumes
         // its whole budget: a plunge that terminates after a few hundred steps
         // would come back with a handful of samples and a marker that jumps.
-        worldline.samples.push(sample_at(tau, &state));
+        //
+        // But only if it is still a point on a timelike worldline.
+        //
+        // `is_finite` is not enough, and the apsides plunge is why. With L_z != 0
+        // the inbound crossing of the inner horizon needs p_r -> -infinity: at
+        // Delta = 0 the finite-p_r branch gives u^r = (a*L_z - 2*M*r*E)/Sigma,
+        // which at a* = 0.9 is +0.61 — outward — while the object is genuinely
+        // falling at -0.61. Ingoing Kerr-Schild has no chart for that, and
+        // `a*L_z > 2*M*r_-*E` holds at *every* nonzero spin here, so it is not a
+        // high-spin corner. The step size collapses, the state slides off the
+        // shell, and the run stored 133 finite-but-nonsense samples — u.u up to
+        // +4e46 — before `renormalize_timelike` finally refused. The 1st-person
+        // camera reads the last sample verbatim, so every one of those was a
+        // frame it could be asked to render.
+        //
+        // Checked here rather than trusted to the projection every tenth step:
+        // that projection *forces* the constraint and can pick the wrong root, so
+        // passing it is not evidence of being on the shell. This is.
+        let u_now = crate::physics::tetrad::four_velocity(&state, metric);
+        let shell = crate::physics::tetrad::dot(metric, state.x[1], state.x[2], &u_now, &u_now);
+        if !shell.is_finite() || (shell + 1.0).abs() > MASS_SHELL_TOLERANCE {
+            worldline.end = WorldlineEnd::NormalizationFailure;
+            break;
+        }
+
+        worldline.samples.push(sample_at(tau, &state, u_now));
     }
 
     // Record the final state, whatever ended the run — unless the run ended
@@ -839,7 +869,7 @@ pub fn integrate_worldline(
         && state.x.iter().all(|v| v.is_finite())
         && state.p.iter().all(|v| v.is_finite())
     {
-        worldline.samples.push(sample_at(tau, &state));
+        worldline.samples.push(sample_at(tau, &state, velocity(&state)));
     }
 
     // Thin uniformly to the caller's cap, always keeping the endpoints.

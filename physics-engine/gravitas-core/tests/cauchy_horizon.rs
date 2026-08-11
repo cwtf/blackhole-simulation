@@ -306,6 +306,84 @@ fn a_bounce_is_never_reported_for_a_diverged_state() {
     }
 }
 
+/// The apsides plunge must not leave garbage in the buffer either.
+///
+/// This is the same failure as the original freeze, reached down a different road.
+/// With `L_z != 0` the *inbound* crossing of the inner horizon needs
+/// `p_r -> -infinity`: at `Delta = 0` the finite-`p_r` branch gives
+/// `u^r = (a*L_z - 2*M*r*E)/Sigma`, which for a plunge from apsides is positive —
+/// outward — while the object is genuinely still falling. Ingoing Kerr-Schild has
+/// no chart for that. The condition `a*L_z > 2*M*r_-*E` holds at **every** nonzero
+/// spin here, so it is not a high-spin corner:
+///
+/// ```text
+///   a*    r_-      a*L_z    2*M*r_-*E   u^r on the finite branch
+///   0.3   0.0461   0.2804   0.0875      +90.9
+///   0.5   0.1340   0.5142   0.2546      +14.5
+///   0.9   0.5641   1.2672   1.0733      + 0.6
+/// ```
+///
+/// The step size then collapsed at `r = r_-` and the run ground on, storing 133
+/// finite-but-nonsense samples — `u.u` up to `+4e46`, static-fallback tetrads —
+/// before the projection finally refused. Every one was a frame the 1st-person
+/// camera could have been asked to render.
+#[test]
+fn an_apsides_plunge_never_stores_a_state_off_the_mass_shell() {
+    for spin in [0.0, 0.3, 0.5, 0.7, 0.9, 0.99, -0.9] {
+        let bh = Kerr::kerr_schild(M, spin);
+        for incl_deg in [0.0, 15.0, 45.0, 80.0] {
+            let w = integrate_worldline(
+                &bh,
+                DropSpec::FromApsides {
+                    r_apo: 20.0 * M,
+                    // Inside the separatrix, so it plunges rather than orbiting.
+                    r_peri: 1.0 * M,
+                    argument: 0.0,
+                    inclination: incl_deg * std::f64::consts::PI / 180.0,
+                    ascending_node: 0.0,
+                },
+                &interior_options(),
+            );
+
+            assert!(
+                !w.samples.is_empty(),
+                "spin {spin}, incl {incl_deg}: no samples at all"
+            );
+
+            for sample in &w.samples {
+                let ctx = format!("spin {spin}, incl {incl_deg}, r = {:.6}", sample.r);
+                assert!(
+                    sample.r.is_finite() && sample.r > 0.0,
+                    "{ctx}: r is not a radius"
+                );
+                assert!(
+                    sample.tau.is_finite() && sample.u.iter().all(|c| c.is_finite()),
+                    "{ctx}: non-finite state"
+                );
+                let norm = dot(&bh, sample.r, sample.theta, &sample.u, &sample.u);
+                assert!(
+                    (norm + 1.0).abs() < 1e-4,
+                    "{ctx}: u.u = {norm:.4e}, off the mass shell"
+                );
+                let frame = tetrad_from_velocity(&bh, sample.r, sample.theta, &sample.u);
+                assert_ne!(
+                    frame.e[0],
+                    [1.0, 0.0, 0.0, 0.0],
+                    "{ctx}: static-fallback tetrad"
+                );
+            }
+
+            // And it must have got somewhere before stopping, rather than dying at
+            // the release radius.
+            assert!(
+                w.min_radius() < 0.5 * 20.0 * M,
+                "spin {spin}, incl {incl_deg}: never fell, min r = {:.4}",
+                w.min_radius()
+            );
+        }
+    }
+}
+
 #[test]
 fn bound_orbits_are_not_cut_short_by_the_turning_point_test() {
     // Eccentric and apsides orbits turn around on every revolution, outside the
