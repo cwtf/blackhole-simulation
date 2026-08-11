@@ -21,7 +21,6 @@ export function TrajectoryPlayback({ object }: { object: UseTestObject }) {
     seekTrajectory,
     crossesEventHorizon,
     eventHorizonProgress,
-    horizonSlowdown,
   } = object;
 
   if (
@@ -38,7 +37,7 @@ export function TrajectoryPlayback({ object }: { object: UseTestObject }) {
     : transportRate < 0
       ? `Rewind ${Math.abs(transportRate)}x`
       : `Forward ${transportRate}x`;
-  const effectiveSpeed = speed * Math.abs(transportRate) * horizonSlowdown;
+  const effectiveSpeed = speed * Math.abs(transportRate);
   const trajectoryPhase =
     eventHorizonProgress !== null && trajectoryProgress >= eventHorizonProgress
       ? "Inside horizon"
@@ -123,11 +122,8 @@ export function TrajectoryPlayback({ object }: { object: UseTestObject }) {
             <div className="text-[8px] uppercase tracking-[0.14em] text-white/75">
               {transportLabel}
             </div>
-            <div
-              className={`text-[7px] ${horizonSlowdown < 0.999 ? "text-amber-300/80" : "text-white/35"}`}
-            >
-              {formatSpeed(effectiveSpeed, paused)}
-              {horizonSlowdown < 0.999 ? " · horizon slow" : " playback"}
+            <div className="text-[7px] text-white/35">
+              {formatSpeed(effectiveSpeed, paused)} playback
             </div>
           </div>
         </div>

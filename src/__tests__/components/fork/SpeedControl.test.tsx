@@ -14,7 +14,6 @@ function speedObject(overrides: Partial<UseTestObject> = {}): UseTestObject {
     paused: false,
     setPaused: vi.fn(),
     transportRate: 4,
-    horizonSlowdown: 1,
     ...overrides,
   } as UseTestObject;
 }
@@ -44,18 +43,14 @@ describe("speed control synchronization", () => {
     expect(object.setSpeed).toHaveBeenLastCalledWith(0.25);
   });
 
-  it("shares rewind direction, horizon slowdown, and pause state", () => {
+  it("shares rewind direction and pause state", () => {
     const object = speedObject({
       paused: false,
       transportRate: -2,
-      horizonSlowdown: 0.5,
     });
     render(<SpeedControl object={object} />);
 
-    expect(screen.getByText("rewind 10×")).not.toBeNull();
-    expect(
-      screen.getByText(/Automatic horizon slowdown is active/),
-    ).not.toBeNull();
+    expect(screen.getByText("rewind 20×")).not.toBeNull();
     fireEvent.click(screen.getByText("pause"));
     expect(object.setPaused).toHaveBeenCalledWith(true);
   });

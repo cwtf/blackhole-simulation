@@ -14,11 +14,7 @@ import {
   tetradToCartesian,
   type CartesianLeg,
 } from "@/physics/first-person";
-import {
-  geometricRatePerSecond,
-  horizonSlowdownFactor,
-  stepTransportRate,
-} from "@/physics/playback";
+import { geometricRatePerSecond, stepTransportRate } from "@/physics/playback";
 import { suitStrain } from "@/physics/tidal";
 import {
   comfortSpeed,
@@ -152,8 +148,6 @@ export interface UseTestObject {
   crossesEventHorizon: boolean;
   /** Normalized proper-time position of the event-horizon crossing. */
   eventHorizonProgress: number | null;
-  /** Automatic factor that caps near-horizon playback at 1x real time. */
-  horizonSlowdown: number;
   /** Per-preset comfort speed, the labelled default detent. */
   comfort: number;
   view: ViewMode;
@@ -444,17 +438,7 @@ export function useTestObject(
         speed,
         timeUnitSeconds(solarMasses),
       );
-      const currentPoint = worldline.sampleByProperTime(properTimeRef.current);
-      const selectedSpeed = speed * Math.abs(transportRate);
-      const slowdown =
-        view === "first" && crossesEventHorizon
-          ? horizonSlowdownFactor(
-              currentPoint.r,
-              eventHorizonRadius,
-              selectedSpeed,
-            )
-          : 1;
-      const delta = dt * baseRate * transportRate * slowdown;
+      const delta = dt * baseRate * transportRate;
 
       if (view === "first") {
         const nextProperTime = Math.min(
@@ -498,16 +482,7 @@ export function useTestObject(
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [
-    worldline,
-    paused,
-    speed,
-    solarMasses,
-    view,
-    crossesEventHorizon,
-    eventHorizonRadius,
-    transportRate,
-  ]);
+  }, [worldline, paused, speed, solarMasses, view, transportRate]);
 
   // §1.9: Space toggles pause. Ignored while typing so it cannot hijack a
   // form field.
@@ -547,14 +522,6 @@ export function useTestObject(
     horizonCrossingTime !== null && worldline?.totalProperTime
       ? horizonCrossingTime / worldline.totalProperTime
       : null;
-  const horizonSlowdown =
-    view === "first" && crossesEventHorizon && ridePoint
-      ? horizonSlowdownFactor(
-          ridePoint.r,
-          eventHorizonRadius,
-          speed * Math.abs(transportRate),
-        )
-      : 1;
 
   // "Ran out of worldline" is not the same as "reached the singularity". A
   // stable circular orbit exhausts its step budget with the object still
@@ -690,7 +657,6 @@ export function useTestObject(
     seekTrajectory,
     crossesEventHorizon,
     eventHorizonProgress,
-    horizonSlowdown,
     comfort: comfortSpeed(solarMasses),
     view,
     setView,

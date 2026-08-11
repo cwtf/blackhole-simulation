@@ -7,7 +7,6 @@ import {
   detents,
   formatSpeed,
   geometricRatePerSecond,
-  horizonSlowdownFactor,
   sliderToSpeed,
   snapToDetent,
   speedToSlider,
@@ -152,18 +151,5 @@ describe("media transport", () => {
   it("starts at 1x when changing direction", () => {
     expect(stepTransportRate(8, -1)).toBe(-1);
     expect(stepTransportRate(-8, 1)).toBe(1);
-  });
-
-  it("slows smoothly at the event horizon and recovers away from it", () => {
-    expect(10 * horizonSlowdownFactor(2, 2, 10)).toBe(1);
-    expect(4 * horizonSlowdownFactor(2.1, 2, 4)).toBe(1);
-    expect(horizonSlowdownFactor(2.5, 2, 10)).toBeGreaterThan(0.1);
-    expect(horizonSlowdownFactor(3, 2, 10)).toBe(1);
-    expect(horizonSlowdownFactor(1, 2, 10)).toBe(1);
-  });
-
-  it("does not accelerate playback selected at or below real time", () => {
-    expect(horizonSlowdownFactor(2, 2, 1)).toBe(1);
-    expect(horizonSlowdownFactor(2, 2, 0.5)).toBe(1);
   });
 });

@@ -26,23 +26,14 @@ import {
  * number — the render loop is entirely separate.
  */
 export function SpeedControl({ object }: { object: UseTestObject }) {
-  const {
-    speed,
-    setSpeed,
-    comfort,
-    paused,
-    setPaused,
-    transportRate,
-    horizonSlowdown,
-  } = object;
+  const { speed, setSpeed, comfort, paused, setPaused, transportRate } = object;
   const transportMagnitude = Math.max(1, Math.abs(transportRate));
   const transportSpeed = speed * transportMagnitude;
-  const effectiveSpeed = transportSpeed * horizonSlowdown;
   const speedLabel = paused
-    ? formatSpeed(effectiveSpeed, true)
+    ? formatSpeed(transportSpeed, true)
     : transportRate < 0
-      ? `rewind ${formatSpeed(effectiveSpeed, false)}`
-      : formatSpeed(effectiveSpeed, false);
+      ? `rewind ${formatSpeed(transportSpeed, false)}`
+      : formatSpeed(transportSpeed, false);
   const setTransportSpeed = (nextSpeed: number) =>
     setSpeed(nextSpeed / transportMagnitude);
 
@@ -53,7 +44,7 @@ export function SpeedControl({ object }: { object: UseTestObject }) {
           Speed
         </h3>
         <span
-          className={`font-mono text-[10px] ${paused || horizonSlowdown < 0.999 ? "text-amber-300/90" : "text-white/85"}`}
+          className={`font-mono text-[10px] ${paused ? "text-amber-300/90" : "text-white/85"}`}
         >
           {speedLabel}
         </span>
@@ -102,7 +93,6 @@ export function SpeedControl({ object }: { object: UseTestObject }) {
       <p className="mt-1 font-mono text-[7px] leading-relaxed text-white/30">
         Playback only — the trajectory is integrated once and is identical at
         every speed. 1× is truthfully real time.
-        {horizonSlowdown < 0.999 && " Automatic horizon slowdown is active."}
       </p>
     </div>
   );

@@ -35,7 +35,6 @@ function playbackObject(overrides: Partial<UseTestObject> = {}): UseTestObject {
     seekTrajectory: vi.fn(),
     crossesEventHorizon: true,
     eventHorizonProgress: 0.5,
-    horizonSlowdown: 1,
     ...overrides,
   } as UseTestObject;
 }
