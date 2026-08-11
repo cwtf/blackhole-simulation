@@ -18,8 +18,10 @@ import {
   timeUnitSeconds,
 } from "@/configs/mass-presets";
 import {
+  DEFAULT_DROP_RADIUS,
   Worldline,
   buildDropRequest,
+  interiorDropOptions,
   isInteriorEndpoint,
   type DropOptions,
   type DropPresetName,
@@ -259,7 +261,31 @@ export function useTestObject(
       setPaused(startPaused);
       setLook({ yaw: 0, pitch: 0 });
 
-      const request = buildDropRequest(preset, requestOptions);
+      // Every worldline is integrated through the horizon to the interior
+      // cutoff, not stopped just outside r_h.
+      //
+      // `buildDropRequest` defaults `innerRadius` to 0, which the Rust side
+      // reads as r_h * 1.001 — the right stopping point for a view that cannot
+      // see further in, and the wrong one for a buffer that both views share.
+      // The panel's Drop button passed no `innerRadius`, so riding one of its
+      // objects ran out of worldline *at the event horizon*: proper time hit
+      // `totalProperTime`, the clamp below pinned it there, and the 1st-person
+      // camera froze on the last sample. That looked exactly like the
+      // 3rd-person dilation freeze and was nothing of the kind — the samples
+      // simply stopped.
+      //
+      // Extending every drop inward costs the 3rd-person view nothing:
+      // interior samples carry t_far = Infinity, so `sampleByFarTime` clamps
+      // to `lastVisibleIndex` and never reaches them. Bound orbits never get
+      // near the cutoff, and `max_orbits` still ends them, so the raised step
+      // budget is a ceiling rather than a cost.
+      //
+      // An explicit `innerRadius`/`maxSteps` from the caller still wins — the
+      // horizon handover in SimulatorApp sets its own.
+      const request = buildDropRequest(preset, {
+        ...interiorDropOptions(mass, requestOptions.r0 ?? DEFAULT_DROP_RADIUS),
+        ...requestOptions,
+      });
       physicsBridge
         .dropTestObject(request)
         .then(({ samples, audit }) => {
@@ -284,7 +310,9 @@ export function useTestObject(
           setError(err instanceof Error ? err.message : String(err));
         });
     },
-    [],
+    // `mass` scales the interior cutoff, so a drop integrated for one hole must
+    // not be reused for another.
+    [mass],
   );
 
   const reset = useCallback(() => {

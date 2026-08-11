@@ -73,6 +73,55 @@ fn frame_is_orthonormal_at_every_radius_including_inside_the_horizon() {
 }
 
 #[test]
+fn spinning_infall_frame_never_collapses_to_the_static_fallback() {
+    let bh = Kerr::kerr_schild(M, 0.5);
+    let r_h = bh.event_horizon();
+    let w = integrate_worldline(
+        &bh,
+        DropSpec::RadialFall { r: 1.02 * r_h },
+        &WorldlineOptions {
+            inner_radius: 0.05 * M,
+            max_steps: 800_000,
+            max_samples: 8_000,
+            ..Default::default()
+        },
+    );
+
+    let mut checked_inside = 0;
+    for sample in &w.samples {
+        let norm = dot(&bh, sample.r, sample.theta, &sample.u, &sample.u);
+        assert!(
+            (norm + 1.0).abs() < 1e-8,
+            "stored four-velocity norm {norm:.12} at r={:.6}",
+            sample.r
+        );
+
+        let frame = tetrad_from_velocity(&bh, sample.r, sample.theta, &sample.u);
+        let err = frame.orthonormality_error(&bh, sample.r, sample.theta);
+        assert!(
+            err < 1e-8,
+            "orthonormality error {err:.3e} at r={:.6}",
+            sample.r
+        );
+        assert_ne!(
+            frame.e[0],
+            [1.0, 0.0, 0.0, 0.0],
+            "tetrad used the static fallback at r={:.6}",
+            sample.r
+        );
+
+        if sample.r < r_h {
+            checked_inside += 1;
+        }
+    }
+
+    assert!(
+        checked_inside > 10,
+        "expected a resolved interior trajectory"
+    );
+}
+
+#[test]
 fn time_leg_is_the_observers_four_velocity() {
     // e_0 must BE the object's 4-velocity, normalised. If it drifted from it,
     // the 1st-person view would be riding something other than the object.

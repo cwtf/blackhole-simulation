@@ -62,4 +62,45 @@ describe("horizon handover playback", () => {
       expect.objectContaining({ startPaused: expect.anything() }),
     );
   });
+
+  /**
+   * The panel's Drop button passes only { r0, tangentialFraction }. When that
+   * left `innerRadius` unset, `buildDropRequest` sent 0, which the Rust side
+   * reads as r_h * 1.001 — so the worldline stopped at the event horizon and
+   * riding it froze there the instant proper time hit `totalProperTime`. Every
+   * drop must be integrated to the interior cutoff, whether or not the caller
+   * thought to ask, because the 1st-person view can ride any of them.
+   */
+  it("integrates every drop through the horizon, not just to it", async () => {
+    const mass = 2;
+    const { result } = renderHook(() => useTestObject(mass, 4.154e6, 0.5));
+
+    act(() => {
+      // Exactly what TestObjectPanel's Drop button sends.
+      result.current.drop("radialFall", { r0: 20, tangentialFraction: 1 });
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+
+    const request = bridgeMocks.dropTestObject.mock.calls[0]?.[0];
+    expect(request.r0).toBe(20);
+    // 0.04 * mass, and strictly inside the horizon rather than at it.
+    expect(request.innerRadius).toBeCloseTo(0.08, 10);
+    expect(request.innerRadius).toBeGreaterThan(0);
+    expect(request.innerRadius).toBeLessThan(2 * mass);
+    expect(request.maxSteps).toBe(800_000);
+  });
+
+  it("lets an explicit innerRadius from the handover win", async () => {
+    const { result } = renderHook(() => useTestObject(1, 4.154e6, 0.5));
+
+    act(() => {
+      result.current.drop("radialFall", { r0: 3, innerRadius: 0.01 });
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(bridgeMocks.dropTestObject).toHaveBeenCalledWith(
+      expect.objectContaining({ r0: 3, innerRadius: 0.01 }),
+    );
+  });
 });

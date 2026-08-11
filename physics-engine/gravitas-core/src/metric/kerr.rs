@@ -375,34 +375,34 @@ impl Kerr {
 // ========================================================================
 impl Kerr {
     fn covariant_ks(&self, r: f64, theta: f64) -> MetricTensor4 {
-        let m = self.mass_val;
-        let a = self.a();
-        let r2 = r * r;
-        let a2 = a * a;
-        let cos2 = theta.cos().powi(2);
-        let sin2 = 1.0 - cos2;
-        let sigma = r2 + a2 * cos2;
-
-        let h = (m * r) / sigma;
-        let l_r = sigma / (r2 + a2);
-        let l = [1.0, l_r, 0.0, -a * sin2];
-
-        let eta_tt = -1.0;
-        let eta_rr = sigma / (r2 + a2);
-        let eta_thth = sigma;
-        let eta_phph = (r2 + a2) * sin2;
+        // The Hamiltonian and its derivatives use `contravariant_ks`, so that
+        // tensor is the source of truth. The previous hand-written covariant
+        // expression was not its inverse when a != 0. Four-velocities were
+        // therefore timelike to the integrator but appeared spacelike to the
+        // rider's tetrad, which collapsed to a static fallback inside the
+        // horizon.
+        //
+        // Invert the sparse (t, r, phi) block analytically. Theta is diagonal.
+        let inverse = self.contravariant_ks(r, theta);
+        let gi = inverse.as_array();
+        let a = gi[0];
+        let b = gi[1];
+        let c = gi[5];
+        let d = gi[7];
+        let e = gi[15];
+        let det = a * (c * e - d * d) - b * b * e;
 
         let mut g = [0.0; 16];
-        g[0] = eta_tt + 2.0 * h * l[0] * l[0];
-        g[1] = 2.0 * h * l[0] * l[1];
-        g[3] = 2.0 * h * l[0] * l[3];
-        g[4] = 2.0 * h * l[1] * l[0];
-        g[5] = eta_rr + 2.0 * h * l[1] * l[1];
-        g[7] = 2.0 * h * l[1] * l[3];
-        g[10] = eta_thth;
-        g[12] = 2.0 * h * l[3] * l[0];
-        g[13] = 2.0 * h * l[3] * l[1];
-        g[15] = eta_phph + 2.0 * h * l[3] * l[3];
+        g[0] = (c * e - d * d) / det;
+        g[1] = -b * e / det;
+        g[3] = b * d / det;
+        g[4] = g[1];
+        g[5] = a * e / det;
+        g[7] = -a * d / det;
+        g[10] = 1.0 / gi[10];
+        g[12] = g[3];
+        g[13] = g[7];
+        g[15] = (a * c - b * b) / det;
 
         MetricTensor4::from_array(g)
     }
@@ -592,5 +592,38 @@ mod tests {
             h_bl,
             h_ks
         );
+    }
+
+    #[test]
+    fn kerr_schild_covariant_metric_is_the_inverse_across_both_horizons() {
+        for spin in [0.0, 0.5, 0.9] {
+            let ks = Kerr::kerr_schild(1.0, spin);
+            for &(r, theta) in &[
+                (10.0, FRAC_PI_2),
+                (2.1, FRAC_PI_2),
+                (1.5, FRAC_PI_2),
+                (0.5, FRAC_PI_2),
+                (0.1, 1.0),
+            ] {
+                let cov = ks.covariant(r, theta);
+                let inv = ks.contravariant(r, theta);
+                let gc = cov.as_array();
+                let gi = inv.as_array();
+
+                for mu in 0..4 {
+                    for nu in 0..4 {
+                        let mut product = 0.0;
+                        for alpha in 0..4 {
+                            product += gc[mu * 4 + alpha] * gi[alpha * 4 + nu];
+                        }
+                        let expected = if mu == nu { 1.0 } else { 0.0 };
+                        assert!(
+                            (product - expected).abs() < 1e-9,
+                            "g_cov * g_inv = {product:.12} at ({mu},{nu}), spin={spin}, r={r}, theta={theta}"
+                        );
+                    }
+                }
+            }
+        }
     }
 }

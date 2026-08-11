@@ -381,6 +381,9 @@ export interface DropOptions {
 /** Renderer cutoff for an interior ride: 0.02 r_s = 0.04 M. */
 export const INTERIOR_CUTOFF_PER_MASS = 0.04;
 
+/** Release radius assumed when a drop does not name one, in M. */
+export const DEFAULT_DROP_RADIUS = 20;
+
 /** Step budget verified by the Rust horizon-handover regression tests. */
 export const INTERIOR_MAX_STEPS = 800_000;
 
@@ -410,7 +413,7 @@ export function buildDropRequest(
 ): DropRequest {
   return {
     preset: DROP_PRESETS[preset],
-    r0: options.r0 ?? 20,
+    r0: options.r0 ?? DEFAULT_DROP_RADIUS,
     tangentialFraction: options.tangentialFraction ?? 1,
     radialVelocity: options.radialVelocity ?? 0,
     innerRadius: options.innerRadius ?? 0,
