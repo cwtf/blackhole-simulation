@@ -10,6 +10,7 @@ import {
   buildDropRequest,
   interiorDropOptions,
   isInteriorEndpoint,
+  WORLDLINE_END,
   type WorldlineAudit,
 } from "@/physics/worldline";
 
@@ -252,6 +253,32 @@ describe("drop requests", () => {
   it("does not label a Kerr horizon endpoint as the singularity", () => {
     expect(isInteriorEndpoint(1.9, 1)).toBe(false);
     expect(isInteriorEndpoint(INTERIOR_CUTOFF_PER_MASS, 1)).toBe(true);
+  });
+
+  /**
+   * A diverged run used to end with r = −6.47, and `-6.47 <= 0.04` is true, so
+   * this reported "at the singularity" for a rider that had overflowed to a
+   * point outside the hole. The integrator no longer emits such a sample, but
+   * the predicate must not accept one either.
+   */
+  it("rejects a non-physical radius rather than calling it the singularity", () => {
+    expect(isInteriorEndpoint(-6.47, 1)).toBe(false);
+    expect(isInteriorEndpoint(0, 1)).toBe(false);
+    expect(isInteriorEndpoint(-0.001, 1)).toBe(false);
+    // Still true for the real thing, at any mass.
+    expect(isInteriorEndpoint(INTERIOR_CUTOFF_PER_MASS * 3, 3)).toBe(true);
+  });
+
+  it("keeps the end-reason codes aligned with the Rust mapping", () => {
+    // Appended, never reordered: the wasm bridge maps WorldlineEnd by position.
+    expect(WORLDLINE_END).toEqual({
+      reachedInnerRadius: 0,
+      escaped: 1,
+      stepBudget: 2,
+      normalizationFailure: 3,
+      completedOrbits: 4,
+      reachedTurningPoint: 5,
+    });
   });
 });
 

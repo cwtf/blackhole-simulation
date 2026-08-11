@@ -42,13 +42,18 @@ export function SingularityCard({
 }) {
   const [dismissed, setDismissed] = useState(false);
   const arrived = object.view === "first" && object.reachedSingularity;
+  // The ride can also end by reversing inside the horizon. Announcing nothing
+  // there leaves the view apparently hung at a radius the user cannot account
+  // for, which is indistinguishable from the bug that used to produce it.
+  const reversed = object.view === "first" && object.reversedInsideHorizon;
+  const ended = arrived || reversed;
 
-  // A fresh drop is a fresh arrival; the card has to come back for it.
+  // A fresh drop is a fresh ending; the card has to come back for it.
   useEffect(() => {
-    if (!arrived) setDismissed(false);
-  }, [arrived]);
+    if (!ended) setDismissed(false);
+  }, [ended]);
 
-  if (!arrived || dismissed) return null;
+  if (!ended || dismissed) return null;
 
   const totalTau = object.worldline?.totalProperTime ?? 0;
   const rHorizon = horizonRadius(mass, spin);
@@ -62,12 +67,18 @@ export function SingularityCard({
   const schwarzschild = Math.abs(spin) < 1e-3;
   const interiorBound = Math.PI * mass;
 
+  // Where the ride actually stopped, for the reversal case. The turning point is
+  // the number that explains the ending, so it is the number to show.
+  const turningRadius = object.worldline
+    ? object.worldline.at(object.worldline.count - 1).r
+    : 0;
+
   return (
     <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" />
       <div className="pointer-events-auto relative max-w-md rounded-sm border border-white/15 bg-black/70 px-8 py-6 text-center">
         <h2 className="mb-3 font-mono text-[11px] uppercase tracking-[0.35em] text-white/90">
-          Reached the singularity
+          {arrived ? "Reached the singularity" : "The fall reversed"}
         </h2>
 
         <dl className="space-y-1 font-mono text-[10px]">
@@ -81,25 +92,36 @@ export function SingularityCard({
               {interiorTau === null ? "—" : interiorTau.toFixed(3)}
             </dd>
           </div>
-          <div className="flex justify-between gap-6">
-            <dt className="text-white/45">
-              {schwarzschild ? "Interior bound πM" : "πM (Schwarzschild only)"}
-            </dt>
-            <dd
-              className={
-                schwarzschild &&
-                interiorTau !== null &&
-                interiorTau <= interiorBound
-                  ? "text-emerald-300/80"
-                  : "text-white/90"
-              }
-            >
-              {interiorBound.toFixed(3)}
-            </dd>
-          </div>
+          {reversed && (
+            <div className="flex justify-between gap-6">
+              <dt className="text-white/45">Turning point r</dt>
+              <dd className="text-white/90">
+                {turningRadius.toFixed(3)} M ({(turningRadius / mass).toFixed(3)}{" "}
+                M/M)
+              </dd>
+            </div>
+          )}
+          {arrived && (
+            <div className="flex justify-between gap-6">
+              <dt className="text-white/45">
+                {schwarzschild ? "Interior bound πM" : "πM (Schwarzschild only)"}
+              </dt>
+              <dd
+                className={
+                  schwarzschild &&
+                  interiorTau !== null &&
+                  interiorTau <= interiorBound
+                    ? "text-emerald-300/80"
+                    : "text-white/90"
+                }
+              >
+                {interiorBound.toFixed(3)}
+              </dd>
+            </div>
+          )}
         </dl>
 
-        {!schwarzschild && (
+        {arrived && !schwarzschild && (
           <p className="mt-3 font-mono text-[7px] leading-relaxed text-amber-300/60">
             This hole is spinning (a* = {spin.toFixed(3)}), so πM is not its
             bound — a Kerr interior has an inner horizon and a ring
@@ -113,11 +135,33 @@ export function SingularityCard({
           switch to 3rd person and the object is still frozen there, reddening.
         </p>
 
-        <p className="mt-3 font-mono text-[8px] leading-relaxed text-white/35">
-          There is no further in. The worldline does not stop because the
-          simulation gave up — it ends because the geodesic is incomplete, and
-          general relativity has nothing to say past this point.
-        </p>
+        {arrived ? (
+          <p className="mt-3 font-mono text-[8px] leading-relaxed text-white/35">
+            There is no further in. The worldline does not stop because the
+            simulation gave up — it ends because the geodesic is incomplete, and
+            general relativity has nothing to say past this point.
+          </p>
+        ) : (
+          <>
+            <p className="mt-3 font-mono text-[8px] leading-relaxed text-white/35">
+              You did not reach the centre, and nothing went wrong. This hole
+              spins (a* = {spin.toFixed(3)}), and a Kerr interior repels an
+              infaller carrying no angular momentum: the barrier goes as
+              2Ma²E², so a release from rest just outside the horizon — which is
+              what flying the camera in gives you — has too little energy to get
+              past it. It turns around and heads back out. Drop from further out
+              and the same hole is reached all the way to the cutoff.
+            </p>
+            <p className="mt-3 font-mono text-[8px] leading-relaxed text-white/35">
+              The ride ends at the turning point because the next thing that
+              happens is an outbound crossing of the inner (Cauchy) horizon, and
+              the ingoing Kerr-Schild coordinates this simulation runs in have no
+              chart on the other side of it. That is a limit of the coordinates,
+              not of the physics — and following it would mean leaving this
+              universe for another copy of it.
+            </p>
+          </>
+        )}
 
         <div className="mt-5 flex gap-2">
           <button
@@ -140,8 +184,9 @@ export function SingularityCard({
         </div>
 
         <p className="mt-3 font-mono text-[7px] text-white/30">
-          Geometric units (G = c = M = 1). Integration ends at r = 0.02 r_s,
-          not at r = 0 — the last two percent is unrenderable, not skipped.
+          {arrived
+            ? "Geometric units (G = c = M = 1). Integration ends at r = 0.02 r_s, not at r = 0 — the last two percent is unrenderable, not skipped."
+            : "Geometric units (G = c = M = 1). The turning point is where dr/dτ changes sign; it agrees with the analytic root of the radial potential to five decimals."}
         </p>
       </div>
     </div>

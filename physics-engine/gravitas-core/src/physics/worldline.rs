@@ -126,6 +126,35 @@ pub enum WorldlineEnd {
     /// Appended deliberately: the wasm bridge maps these to integers and 0..3
     /// are already in use.
     CompletedOrbits,
+    /// The infall reversed inside the horizon: the object reached a radial
+    /// turning point and is heading back out.
+    ///
+    /// This is **real physics, not a solver failure.** With L_z = 0 the radial
+    /// potential factors as R(r) = r·f(r) with
+    ///
+    /// ```text
+    ///   f(r) = (E²−1) r³ + 2M r² + a²(E²−1) r + 2M a² E²
+    /// ```
+    ///
+    /// and f(0) = 2M a² E² > 0, so a spinning hole always presents a barrier to
+    /// a zero-angular-momentum infaller. Whether it bites above the caller's
+    /// `inner_radius` depends on E: a release from rest just outside r_+ has
+    /// E ≈ 0.08 at a* = 0.9 and turns around at r ≈ 0.535, while a fall from
+    /// r₀ = 20 M has E ≈ 0.95 and reaches the centre.
+    ///
+    /// The run has to stop here because the object next re-crosses the **inner
+    /// (Cauchy) horizon outbound**, and ingoing Kerr-Schild cannot represent
+    /// that: p_r diverges as 4MrE/Δ. Integrating on drives the stepper to its
+    /// floor, and the forced steps below then walk the state onto the divergent
+    /// branch — r goes negative, u^μ overflows to ~1e17, u·u reaches +1e35, and
+    /// the tetrad collapses to the static fallback. Every one of those samples
+    /// used to be handed to the 1st-person camera.
+    ///
+    /// Continuing past the bounce needs a second chart (outgoing Kerr-Schild),
+    /// not a smaller step.
+    ///
+    /// Appended for the same reason as `CompletedOrbits`: 0..4 are taken.
+    ReachedTurningPoint,
 }
 
 /// An integrated test-object trajectory plus its conservation audit.
@@ -586,8 +615,22 @@ pub fn integrate_worldline(
     let mut last_phi = state.x[3];
     let sweep_limit = std::f64::consts::TAU * options.max_orbits.max(0.0);
 
+    // The outer horizon, for the turning-point test below. Read once: it is a
+    // property of the metric, not of the state.
+    let r_horizon = metric.event_horizon();
+
     for step in 0..options.max_steps {
         let r = state.x[1];
+
+        // A finite but non-positive radius is not a place; it is what the state
+        // looks like after the integration has already broken down. Reporting
+        // it as `ReachedInnerRadius` made a diverged run indistinguishable from
+        // a clean arrival at the cutoff — and `isInteriorEndpoint` on the JS
+        // side duly accepted r = −6.47 as "at the singularity".
+        if !(r > 0.0) {
+            worldline.end = WorldlineEnd::NormalizationFailure;
+            break;
+        }
         if r <= inner {
             worldline.end = WorldlineEnd::ReachedInnerRadius;
             break;
@@ -636,6 +679,28 @@ pub fn integrate_worldline(
 
         tau += accepted;
 
+        // A diverged state must never reach the sample buffer. Checked before
+        // anything is recorded, because the 1st-person camera reads the last
+        // sample verbatim once proper time clamps: a non-finite u^mu there
+        // becomes a NaN tetrad and a frozen, degenerate frame.
+        if !state.x.iter().all(|v| v.is_finite()) || !state.p.iter().all(|v| v.is_finite()) {
+            worldline.end = WorldlineEnd::NormalizationFailure;
+            break;
+        }
+
+        // Did the fall reverse? `r` is the radius before this step and
+        // `state.x[1]` the one after, so a rise means the object has passed a
+        // radial turning point. Gated on being inside the outer horizon: bound
+        // orbits turn around all the time out there, and terminating those
+        // would break every eccentric and apsides preset. Inside r_+ there is
+        // nothing left to orbit — see `WorldlineEnd::ReachedTurningPoint` for
+        // why the chart, not the solver, is what runs out here.
+        if state.x[1] < r_horizon && state.x[1] > r {
+            worldline.end = WorldlineEnd::ReachedTurningPoint;
+            worldline.samples.push(sample_at(tau, &state));
+            break;
+        }
+
         // Accumulate the revolution count on the short arc, so a wrap through
         // ±π adds a small angle rather than a full turn in the wrong
         // direction. Done here, against the state the step just produced.
@@ -675,8 +740,30 @@ pub fn integrate_worldline(
         worldline.samples.push(sample_at(tau, &state));
     }
 
-    // Always record the final state, whatever ended the run.
-    worldline.samples.push(sample_at(tau, &state));
+    // Record the final state, whatever ended the run — unless the run ended
+    // *because* the state stopped being one. `NormalizationFailure` and the
+    // turning-point branch have already recorded everything they should, and
+    // appending here would put the diverged state back at the end of the buffer
+    // that `sampleByProperTime` clamps to.
+    //
+    // It is also skipped when the loop already recorded this exact state. The
+    // loop pushes after every accepted step, so a run that ends by *testing* r
+    // at the top of the next iteration — every `ReachedInnerRadius` arrival —
+    // used to append a byte-identical duplicate. Two samples sharing one τ give
+    // the final interpolation interval zero width, which is why every consumer
+    // needs a `span > 0` guard to avoid dividing by it.
+    let already_recorded = worldline
+        .samples
+        .last()
+        .is_some_and(|s| s.tau == tau && s.r == state.x[1]);
+    if worldline.end != WorldlineEnd::NormalizationFailure
+        && worldline.end != WorldlineEnd::ReachedTurningPoint
+        && !already_recorded
+        && state.x.iter().all(|v| v.is_finite())
+        && state.p.iter().all(|v| v.is_finite())
+    {
+        worldline.samples.push(sample_at(tau, &state));
+    }
 
     // Thin uniformly to the caller's cap, always keeping the endpoints.
     let cap = options.max_samples.max(2);

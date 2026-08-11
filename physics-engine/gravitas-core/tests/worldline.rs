@@ -522,7 +522,17 @@ fn released_just_outside_the_horizon_still_reaches_the_singularity() {
 #[test]
 fn handover_drop_works_for_a_spinning_hole_too() {
     // The handover radius follows the Kerr horizon, which shrinks with spin,
-    // so the same drop has to behave at a= 0.9 where r_h is only 1.436 M.
+    // so the same drop has to behave at a = 0.9 where r_h is only 1.436 M.
+    //
+    // It does NOT reach the inner radius there, and this test used to assert
+    // that it did. It passed for the worst possible reason: the run diverged at
+    // the outbound Cauchy-horizon crossing and ended with r = -6.47, which
+    // satisfies both `r <= inner_radius` and the `r < r_h` check below. The
+    // assertions were describing a buffer full of overflowed samples.
+    //
+    // A release from rest at 1.02 r_h has E = 0.0798 here, and the Kerr barrier
+    // 2M a^2 E^2 turns it around at r = 0.535 — real physics, and above the
+    // 0.05 M cutoff. See tests/cauchy_horizon.rs for the analytic comparison.
     let m = Kerr::kerr_schild(M, 0.9);
     let r_h = m.event_horizon();
     let w = integrate_worldline(
@@ -537,12 +547,26 @@ fn handover_drop_works_for_a_spinning_hole_too() {
 
     assert_eq!(
         w.end,
-        WorldlineEnd::ReachedInnerRadius,
+        WorldlineEnd::ReachedTurningPoint,
         "spinning-hole handover drop ended {:?}",
         w.end
     );
     assert!(w.proper_time.is_finite() && w.proper_time > 0.0);
-    assert!(w.samples.last().unwrap().r < r_h);
+
+    // Stopped inside the horizon but short of the cutoff, at a real radius.
+    let last = w.samples.last().unwrap();
+    assert!(
+        last.r > 0.05 * M && last.r < r_h,
+        "handover ended at r = {:.6}, expected between the cutoff and r_h = {r_h:.6}",
+        last.r
+    );
+
+    // And the crossing is still rendered on both sides.
+    let inside = w.samples.iter().filter(|s| s.r < r_h).count();
+    assert!(
+        w.samples.iter().any(|s| s.r > r_h) && inside > 10,
+        "expected samples either side of the horizon, got {inside} inside"
+    );
 }
 
 #[test]

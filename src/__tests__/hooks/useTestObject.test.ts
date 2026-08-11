@@ -2,7 +2,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useTestObject } from "@/hooks/useTestObject";
-import { WORLDLINE_STRIDE, type WorldlineAudit } from "@/physics/worldline";
+import {
+  WORLDLINE_END,
+  WORLDLINE_STRIDE,
+  type WorldlineAudit,
+} from "@/physics/worldline";
 
 const bridgeMocks = vi.hoisted(() => ({
   dropTestObject: vi.fn(),
@@ -89,6 +93,86 @@ describe("horizon handover playback", () => {
     expect(request.innerRadius).toBeGreaterThan(0);
     expect(request.innerRadius).toBeLessThan(2 * mass);
     expect(request.maxSteps).toBe(800_000);
+  });
+
+  /**
+   * A ride that bounces off the Kerr barrier must not claim it arrived.
+   *
+   * It used to: the diverged run reported `endReason` 0 with a final r of
+   * −6.47, which the old `isInteriorEndpoint` accepted, so the "reached the
+   * singularity" card appeared over a frozen frame at a radius *outside* the
+   * hole. Both flags are checked, because getting one right and the other wrong
+   * is how it looked correct in passing.
+   */
+  it.each([
+    {
+      name: "a bounce inside the horizon",
+      endReason: WORLDLINE_END.reachedTurningPoint,
+      r: 0.535,
+      expectArrival: false,
+      expectReversal: true,
+    },
+    {
+      name: "a genuine arrival at the cutoff",
+      endReason: WORLDLINE_END.reachedInnerRadius,
+      r: 0.039,
+      expectArrival: true,
+      expectReversal: false,
+    },
+    {
+      name: "a run that stopped at the horizon",
+      endReason: WORLDLINE_END.reachedInnerRadius,
+      r: 1.87,
+      expectArrival: false,
+      expectReversal: false,
+    },
+  ])(
+    "classifies $name",
+    async ({ endReason, r, expectArrival, expectReversal }) => {
+      // One sample at tau = 0 so the playback clock is already at the end.
+      const samples = new Float32Array(WORLDLINE_STRIDE);
+      samples[3] = r;
+      bridgeMocks.dropTestObject.mockResolvedValue({
+        samples,
+        audit: { ...AUDIT, endReason },
+      });
+
+      const { result } = renderHook(() => useTestObject(1, 4.154e6, 0.9));
+      act(() => {
+        result.current.drop("radialFall", { r0: 2 });
+      });
+      await waitFor(() => expect(result.current.status).toBe("ready"));
+      act(() => {
+        result.current.setView("first");
+      });
+
+      expect(result.current.reachedSingularity).toBe(expectArrival);
+      expect(result.current.reversedInsideHorizon).toBe(expectReversal);
+      // Never both.
+      expect(
+        result.current.reachedSingularity && result.current.reversedInsideHorizon,
+      ).toBe(false);
+    },
+  );
+
+  it("does not call a diverged negative radius an arrival", async () => {
+    const samples = new Float32Array(WORLDLINE_STRIDE);
+    samples[3] = -6.47; // what the old integrator left in the buffer
+    bridgeMocks.dropTestObject.mockResolvedValue({
+      samples,
+      audit: { ...AUDIT, endReason: WORLDLINE_END.reachedInnerRadius },
+    });
+
+    const { result } = renderHook(() => useTestObject(1, 4.154e6, 0.9));
+    act(() => {
+      result.current.drop("radialFall", { r0: 2 });
+    });
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    act(() => {
+      result.current.setView("first");
+    });
+
+    expect(result.current.reachedSingularity).toBe(false);
   });
 
   it("lets an explicit innerRadius from the handover win", async () => {

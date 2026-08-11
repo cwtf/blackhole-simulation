@@ -844,6 +844,7 @@ impl PhysicsEngine {
                     worldline::WorldlineEnd::StepBudget => 2,
                     worldline::WorldlineEnd::NormalizationFailure => 3,
                     worldline::WorldlineEnd::CompletedOrbits => 4,
+                    worldline::WorldlineEnd::ReachedTurningPoint => 5,
                 },
                 samples: line.samples.len() as u32,
             });

@@ -395,8 +395,38 @@ export function interiorDropOptions(mass: number, r0: number): DropOptions {
   };
 }
 
+/**
+ * `WorldlineAudit.endReason` codes, mirroring the `WorldlineEnd` mapping in
+ * `gravitas-wasm/src/lib.rs`. Values are appended there, never reordered.
+ */
+export const WORLDLINE_END = {
+  reachedInnerRadius: 0,
+  escaped: 1,
+  stepBudget: 2,
+  normalizationFailure: 3,
+  completedOrbits: 4,
+  /**
+   * The infall reversed inside the horizon and the run stopped at the turning
+   * point. Real physics: a spinning hole has a barrier 2M a² E² that a
+   * zero-angular-momentum infaller with low enough E cannot get past, so a
+   * release from rest just outside r_+ bounces for |a*| ≳ 0.5. The run cannot
+   * continue because the object next re-crosses the inner (Cauchy) horizon
+   * outbound, which ingoing Kerr-Schild has no coordinates for.
+   */
+  reachedTurningPoint: 5,
+} as const;
+
+/**
+ * Whether a radius is the interior cutoff, i.e. as close to the singularity as
+ * the integration goes.
+ *
+ * The `radius > 0` half is not pedantry. A diverged run used to end with
+ * r = −6.47, and `-6.47 <= 0.04` is true — so this reported "at the
+ * singularity" for a rider that had overflowed to a point *outside* the hole,
+ * and the arrival card duly appeared over a frozen frame.
+ */
 export function isInteriorEndpoint(radius: number, mass: number): boolean {
-  return radius <= INTERIOR_CUTOFF_PER_MASS * mass;
+  return radius > 0 && radius <= INTERIOR_CUTOFF_PER_MASS * mass;
 }
 
 /**

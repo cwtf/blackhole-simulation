@@ -78,6 +78,10 @@ export interface BlackHoleDebugApi {
     status: string;
     canRideAlong: boolean;
     reachedSingularity: boolean;
+    /** The interior ride ended at a turning point rather than the singularity. */
+    reversedInsideHorizon: boolean;
+    /** Raw `WorldlineEnd` code; see `WORLDLINE_END` in physics/worldline. */
+    endReason: number | null;
     properTime: number;
     paused: boolean;
     speed: number;
@@ -264,6 +268,8 @@ export function DebugHooks({
         status: riderRef.current.status,
         canRideAlong: riderRef.current.canRideAlong,
         reachedSingularity: riderRef.current.reachedSingularity,
+        reversedInsideHorizon: riderRef.current.reversedInsideHorizon,
+        endReason: riderRef.current.worldline?.audit.endReason ?? null,
         properTime: riderRef.current.properTime,
         paused: riderRef.current.paused,
         speed: riderRef.current.speed,

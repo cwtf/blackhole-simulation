@@ -23,6 +23,7 @@ import {
   buildDropRequest,
   interiorDropOptions,
   isInteriorEndpoint,
+  WORLDLINE_END,
   type DropOptions,
   type DropPresetName,
 } from "@/physics/worldline";
@@ -139,6 +140,12 @@ export interface UseTestObject {
   firstPersonFrame: FirstPersonFrame | null;
   /** True once the rider has reached the singularity. */
   reachedSingularity: boolean;
+  /**
+   * True once the rider's fall reversed inside the horizon and the worldline
+   * ended at the turning point rather than at the singularity. Mutually
+   * exclusive with `reachedSingularity`.
+   */
+  reversedInsideHorizon: boolean;
   drop: (preset: DropPresetName, options?: TestObjectDropOptions) => void;
   reset: () => void;
   readout: TestObjectReadout | null;
@@ -411,12 +418,32 @@ export function useTestObject(
   // integration to have actually terminated at the inner radius
   // (endReason 0 = ReachedInnerRadius) at the explicit interior cutoff. The
   // old `r < 2M` check mislabeled the outer Kerr horizon as the singularity.
+  const rideEnded =
+    !!ridePoint && !!worldline && properTime >= worldline.totalProperTime;
+
   const reachedSingularity =
-    !!ridePoint &&
+    rideEnded &&
     !!worldline &&
-    properTime >= worldline.totalProperTime &&
-    worldline.audit.endReason === 0 &&
+    !!ridePoint &&
+    worldline.audit.endReason === WORLDLINE_END.reachedInnerRadius &&
     isInteriorEndpoint(ridePoint.r, mass);
+
+  // The other way an interior ride can end (spec §1.6): the fall reversed.
+  //
+  // A spinning hole has a barrier 2M a² E² for a zero-angular-momentum
+  // infaller, so the handover's release from rest at 1.02 r_+ — E ≈ 0.08 at
+  // a* = 0.9 — turns around at r ≈ 0.535 instead of reaching the cutoff. The
+  // rider then heads back out toward the inner horizon, which ingoing
+  // Kerr-Schild cannot follow it across, so the worldline stops there.
+  //
+  // This has to be distinguishable from an arrival. It used to be reported as
+  // one: the diverged run ended with `endReason` 0 and r = −6.47, which the old
+  // `isInteriorEndpoint` accepted, so the "reached the singularity" card
+  // appeared for a rider that had bounced and then overflowed.
+  const reversedInsideHorizon =
+    rideEnded &&
+    !!worldline &&
+    worldline.audit.endReason === WORLDLINE_END.reachedTurningPoint;
 
   let firstPersonFrame: FirstPersonFrame | null = null;
   if (view === "first" && ridePoint && worldline) {
@@ -516,6 +543,7 @@ export function useTestObject(
     setShowSuit,
     firstPersonFrame,
     reachedSingularity,
+    reversedInsideHorizon,
     drop,
     reset,
     readout,
