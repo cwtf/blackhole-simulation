@@ -8,7 +8,8 @@
 use gravitas::metric::{Kerr, Metric, Orbit};
 use gravitas::physics::apsides::{
     constants_from_turning_points, inner_turning_point, radial_cubic,
-    schwarzschild_separatrix_periapsis, separatrix_periapsis, solve_apsides, ApsidesKind,
+    radial_potential, schwarzschild_separatrix_periapsis, separatrix_periapsis,
+    solve_apsides, solve_inclined_apsides, ApsidesKind,
 };
 use gravitas::physics::worldline::{
     integrate_worldline, DropSpec, Worldline, WorldlineOptions,
@@ -24,10 +25,88 @@ fn spinning(a_star: f64) -> Kerr {
     Kerr::kerr_schild(M, a_star)
 }
 
+#[test]
+fn inclined_kerr_constants_preserve_both_radial_turning_points() {
+    let metric = spinning(0.9);
+    let solution = solve_inclined_apsides(&metric, 9.0, 25.0, 55_f64.to_radians());
+    assert_eq!(solution.kind, ApsidesKind::BoundOrbit);
+    assert!(
+        solution.carter_constant > 0.0,
+        "inclined solve fell back to {solution:?}"
+    );
+    for r in [9.0, 25.0] {
+        let residual = radial_potential(
+            r,
+            M,
+            metric.a(),
+            solution.energy,
+            solution.angular_momentum,
+            solution.carter_constant,
+        );
+        assert!(residual.abs() / r.powi(4) < 1e-9, "R({r}) = {residual}");
+    }
+}
+
+#[test]
+fn inclined_capture_still_launches_at_the_requested_apoapsis() {
+    let metric = spinning(0.9);
+    let solution = solve_inclined_apsides(&metric, 1.0, 25.0, 60_f64.to_radians());
+    assert_eq!(solution.kind, ApsidesKind::Plunge);
+    assert!(
+        solution.carter_constant > 0.0,
+        "inclined capture fell back to {solution:?}"
+    );
+    let residual = radial_potential(
+        solution.apoapsis,
+        M,
+        metric.a(),
+        solution.energy,
+        solution.angular_momentum,
+        solution.carter_constant,
+    );
+    assert!(residual.abs() / solution.apoapsis.powi(4) < 1e-9);
+}
+
+#[test]
+fn inclined_worldline_moves_on_all_three_cartesian_axes() {
+    let metric = spinning(0.7);
+    let line = integrate_worldline(
+        &metric,
+        DropSpec::FromApsides {
+            r_apo: 25.0,
+            r_peri: 10.0,
+            argument: 35_f64.to_radians(),
+            inclination: 50_f64.to_radians(),
+            ascending_node: 25_f64.to_radians(),
+        },
+        &WorldlineOptions {
+            max_steps: 30_000,
+            max_orbits: 2.0,
+            ..Default::default()
+        },
+    );
+    let y_extent = line
+        .samples
+        .iter()
+        .map(|sample| sample.r * sample.theta.cos())
+        .fold((f64::INFINITY, f64::NEG_INFINITY), |(lo, hi), y| {
+            (lo.min(y), hi.max(y))
+        });
+    assert!(y_extent.1 - y_extent.0 > 5.0, "y extent was {y_extent:?}");
+    assert!((line.min_radius() - 10.0).abs() / 10.0 < 3e-3);
+    assert!((line.max_radius() - 25.0).abs() / 25.0 < 3e-3);
+}
+
 fn run(metric: &Kerr, r_peri: f64, r_apo: f64, max_steps: usize) -> Worldline {
     integrate_worldline(
         metric,
-        DropSpec::FromApsides { r_apo, r_peri },
+        DropSpec::FromApsides {
+            r_apo,
+            r_peri,
+            argument: 0.0,
+            inclination: 0.0,
+            ascending_node: 0.0,
+        },
         &WorldlineOptions {
             max_steps,
             ..Default::default()
@@ -374,7 +453,13 @@ fn integrated_precession_matches_the_exact_schwarzschild_formula() {
         let r_apo = p / (1.0 - e);
         let w = integrate_worldline(
             &metric,
-            DropSpec::FromApsides { r_apo, r_peri },
+            DropSpec::FromApsides {
+                r_apo,
+                r_peri,
+                argument: 0.0,
+                inclination: 0.0,
+                ascending_node: 0.0,
+            },
             &WorldlineOptions {
                 max_steps: 800_000,
                 max_samples: 200_000,

@@ -271,6 +271,9 @@ fn bound_orbits_are_not_cut_short_by_the_turning_point_test() {
         DropSpec::FromApsides {
             r_apo: 20.0,
             r_peri: 10.0,
+            argument: 0.0,
+            inclination: 0.0,
+            ascending_node: 0.0,
         },
     ] {
         let w = integrate_worldline(&bh, drop, &interior_options());

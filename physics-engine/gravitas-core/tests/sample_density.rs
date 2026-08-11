@@ -53,6 +53,9 @@ fn a_bound_orbit_stops_after_max_orbits_instead_of_burning_the_step_budget() {
         DropSpec::FromApsides {
             r_apo: 20.0 * M,
             r_peri: 5.5 * M,
+            argument: 0.0,
+            inclination: 0.0,
+            ascending_node: 0.0,
         },
         WorldlineOptions {
             max_samples: 8_000,
@@ -82,6 +85,9 @@ fn stored_samples_are_dense_enough_to_render_as_a_curve() {
         DropSpec::FromApsides {
             r_apo: 20.0 * M,
             r_peri: 5.5 * M,
+            argument: 0.0,
+            inclination: 0.0,
+            ascending_node: 0.0,
         },
         WorldlineOptions {
             max_samples: 8_000,

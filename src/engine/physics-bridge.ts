@@ -22,6 +22,8 @@ export interface WorldlineAudit {
 export interface ApsidesSolution {
   energy: number;
   angularMomentum: number;
+  /** Carter constant Q. Zero for equatorial motion. */
+  carterConstant: number;
   /** Launch radius: always the outer of the two requested radii. */
   apoapsis: number;
   /** The periapsis these constants produce, or null when there is none. */
@@ -32,12 +34,13 @@ export interface ApsidesSolution {
   plunges: boolean;
 }
 
-/** Decode the flat `[E, L, r_apo, r_peri, separatrix, kind]` from Rust. */
+/** Decode `[E, Lz, r_apo, r_peri, separatrix, kind, Q]` from Rust. */
 function decodeApsides(values: number[]): ApsidesSolution {
   const periapsis = values[3] ?? NaN;
   return {
     energy: values[0] ?? 0,
     angularMomentum: values[1] ?? 0,
+    carterConstant: values[6] ?? 0,
     apoapsis: values[2] ?? 0,
     periapsis: Number.isFinite(periapsis) ? periapsis : null,
     separatrix: values[4] ?? 0,
@@ -516,6 +519,9 @@ export class PhysicsBridge {
     maxSamples: number;
     /** Periapsis in M; read only by the from-apsides preset (spec §6.3). */
     rPeri?: number;
+    argument?: number;
+    inclination?: number;
+    ascendingNode?: number;
   }): Promise<{ samples: Float32Array; audit: WorldlineAudit }> {
     await this.ensureInitialized();
 
@@ -552,6 +558,9 @@ export class PhysicsBridge {
       request.maxSteps,
       request.maxSamples,
       request.rPeri ?? 0,
+      request.argument ?? 0,
+      request.inclination ?? 0,
+      request.ascendingNode ?? 0,
     );
     return {
       // Copy: the returned view aliases WASM memory, which is invalidated
@@ -583,6 +592,7 @@ export class PhysicsBridge {
   public async solveApsides(
     rPeri: number,
     rApo: number,
+    inclination = 0,
   ): Promise<ApsidesSolution> {
     await this.ensureInitialized();
 
@@ -601,12 +611,17 @@ export class PhysicsBridge {
           }
         };
         worker.addEventListener("message", onMessage);
-        worker.postMessage({ type: "SOLVE_APSIDES", data: { id, rPeri, rApo } });
+        worker.postMessage({
+          type: "SOLVE_APSIDES",
+          data: { id, rPeri, rApo, inclination },
+        });
       });
     }
 
     if (!this.engine) throw new Error("physics engine unavailable");
-    return decodeApsides(Array.from(this.engine.solve_apsides(rPeri, rApo)));
+    return decodeApsides(
+      Array.from(this.engine.solve_apsides(rPeri, rApo, inclination)),
+    );
   }
 
   /**

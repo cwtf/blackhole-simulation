@@ -116,6 +116,9 @@ self.onmessage = async (e: MessageEvent) => {
       maxSteps,
       maxSamples,
       rPeri,
+      argument,
+      inclination,
+      ascendingNode,
     } = data;
     try {
       const samples = engine.integrate_test_object(
@@ -127,6 +130,9 @@ self.onmessage = async (e: MessageEvent) => {
         maxSteps,
         maxSamples,
         rPeri ?? 0,
+        argument ?? 0,
+        inclination ?? 0,
+        ascendingNode ?? 0,
       );
       // Copy out of WASM memory: the returned view aliases the heap, which
       // moves when WASM grows, and it cannot be transferred while it does.
@@ -170,12 +176,14 @@ self.onmessage = async (e: MessageEvent) => {
   // is the point — the alternative was a TypeScript copy of the solver, and a
   // second implementation of the same physics is how the two drift apart.
   if (type === "SOLVE_APSIDES" && engine) {
-    const { id, rPeri, rApo } = data;
+    const { id, rPeri, rApo, inclination } = data;
     try {
       self.postMessage({
         type: "APSIDES",
         id,
-        values: Array.from(engine.solve_apsides(rPeri, rApo) as Float64Array),
+        values: Array.from(
+          engine.solve_apsides(rPeri, rApo, inclination ?? 0) as Float64Array,
+        ),
       });
     } catch (err: unknown) {
       self.postMessage({

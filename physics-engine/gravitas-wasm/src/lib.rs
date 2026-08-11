@@ -746,6 +746,9 @@ impl PhysicsEngine {
         max_steps: u32,
         max_samples: u32,
         r_peri: f64,
+        argument: f64,
+        inclination: f64,
+        ascending_node: f64,
     ) -> Result<Float32Array, JsValue> {
         if !(r0.is_finite() && r0 > 0.0) {
             return Err(JsValue::from_str(
@@ -781,6 +784,9 @@ impl PhysicsEngine {
                 worldline::DropSpec::FromApsides {
                     r_apo: r0,
                     r_peri,
+                    argument,
+                    inclination,
+                    ascending_node,
                 }
             }
             other => {
@@ -897,8 +903,8 @@ impl PhysicsEngine {
     /// Resolve a requested pair of apsides against the current metric
     /// (spec §6.3), without integrating anything.
     ///
-    /// Returns six numbers:
-    /// `[energy, angular_momentum, apoapsis, periapsis, separatrix, kind]`,
+    /// Returns seven numbers:
+    /// `[energy, angular_momentum, apoapsis, periapsis, separatrix, kind, carter_constant]`,
     /// where `periapsis` is `NaN` when there is no inner turning point and
     /// `kind` is 0 for a bound orbit, 1 for a plunge.
     ///
@@ -906,8 +912,13 @@ impl PhysicsEngine {
     /// being handed is an orbit or a capture, without either guessing or
     /// re-implementing the solver in TypeScript. The integration remains the
     /// authority; this is the same code it will run, asked one question early.
-    pub fn solve_apsides(&self, r_peri: f64, r_apo: f64) -> Vec<f64> {
-        let solution = apsides::solve_apsides(&self.metric_ks, r_peri, r_apo);
+    pub fn solve_apsides(&self, r_peri: f64, r_apo: f64, inclination: f64) -> Vec<f64> {
+        let solution = apsides::solve_inclined_apsides(
+            &self.metric_ks,
+            r_peri,
+            r_apo,
+            inclination,
+        );
         vec![
             solution.energy,
             solution.angular_momentum,
@@ -918,6 +929,7 @@ impl PhysicsEngine {
                 apsides::ApsidesKind::BoundOrbit => 0.0,
                 apsides::ApsidesKind::Plunge => 1.0,
             },
+            solution.carter_constant,
         ]
     }
 

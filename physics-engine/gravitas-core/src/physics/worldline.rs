@@ -318,7 +318,7 @@ impl Worldline {
     }
 }
 
-/// How the object is launched. All variants are equatorial (θ = π/2).
+/// How the object is launched. Presets are equatorial except inclined apsides.
 #[derive(Clone, Copy, Debug)]
 pub enum DropSpec {
     /// Stable circular orbit at `r`. Spec §1.5 preset.
@@ -348,7 +348,13 @@ pub enum DropSpec {
     /// from that apoapsis — i.e. it is inside the separatrix — the object
     /// plunges rather than being quietly clamped to the nearest orbit that
     /// works; see [`crate::physics::apsides::solve_apsides`].
-    FromApsides { r_apo: f64, r_peri: f64 },
+    FromApsides {
+        r_apo: f64,
+        r_peri: f64,
+        argument: f64,
+        inclination: f64,
+        ascending_node: f64,
+    },
 }
 
 /// Integration controls for a worldline.
@@ -440,12 +446,58 @@ pub fn initial_state(metric: &Kerr, drop: DropSpec) -> GeodesicState {
     // Omega = dphi/dt is not. Converting a Boyer-Lindquist Omega into these
     // coordinates is exactly the kind of quiet coordinate mixing spec §5
     // warns about.
-    if let DropSpec::FromApsides { r_apo, r_peri } = drop {
-        let solution = crate::physics::apsides::solve_apsides(metric, r_peri, r_apo);
+    if let DropSpec::FromApsides {
+        r_apo,
+        r_peri,
+        argument,
+        inclination,
+        ascending_node,
+    } = drop
+    {
+        let solution = crate::physics::apsides::solve_inclined_apsides(
+            metric,
+            r_peri,
+            r_apo,
+            inclination,
+        );
         let r = solution.apoapsis;
+
+        // Generic Kerr motion is not planar. These Euler angles define the
+        // initial/osculating ellipse and therefore the radial/polar phase at
+        // apoapsis; the integrated orbit is then free to nodally precess.
+        let effective_inclination = if solution.carter_constant > 0.0 {
+            inclination
+        } else {
+            0.0
+        };
+        let node = [ascending_node.cos(), 0.0, ascending_node.sin()];
+        let transverse = [
+            -ascending_node.sin() * effective_inclination.cos(),
+            effective_inclination.sin(),
+            ascending_node.cos() * effective_inclination.cos(),
+        ];
+        let major = [
+            node[0] * argument.cos() + transverse[0] * argument.sin(),
+            transverse[1] * argument.sin(),
+            node[2] * argument.cos() + transverse[2] * argument.sin(),
+        ];
+        let minor_y = transverse[1] * argument.cos();
+        let theta = major[1].clamp(-1.0, 1.0).acos();
+        let phi = major[2].atan2(major[0]);
 
         let p_t = -solution.energy;
         let p_phi = solution.angular_momentum;
+        let cos_theta = theta.cos();
+        let sin2_theta = theta.sin().powi(2).max(1e-15);
+        let polar_potential = solution.carter_constant
+            - cos_theta.powi(2)
+                * (a * a * (1.0 - solution.energy * solution.energy)
+                    + p_phi * p_phi / sin2_theta);
+        let p_theta = if minor_y.abs() < 1e-12 {
+            0.0
+        } else {
+            -minor_y.signum() * polar_potential.max(0.0).sqrt()
+        };
 
         // Released at the apoapsis, so u^r = g^{r mu} p_mu = 0. Solving that
         // for p_r is one division; note p_r is NOT zero in Kerr-Schild, where
@@ -462,8 +514,8 @@ pub fn initial_state(metric: &Kerr, drop: DropSpec) -> GeodesicState {
         };
 
         return GeodesicState {
-            x: [0.0, r, theta, 0.0],
-            p: [p_t, p_r, 0.0, p_phi],
+            x: [0.0, r, theta, phi],
+            p: [p_t, p_r, p_theta, p_phi],
         };
     }
 

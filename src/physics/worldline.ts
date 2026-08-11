@@ -366,6 +366,10 @@ export interface DropRequest {
   maxSamples: number;
   /** Periapsis in M. Read only by the `apsides` preset. */
   rPeri: number;
+  /** Initial orbit orientation, in radians. Read only by `apsides`. */
+  argument: number;
+  inclination: number;
+  ascendingNode: number;
 }
 
 export interface DropOptions {
@@ -376,6 +380,9 @@ export interface DropOptions {
   maxSteps?: number;
   maxSamples?: number;
   rPeri?: number;
+  argument?: number;
+  inclination?: number;
+  ascendingNode?: number;
 }
 
 /** Renderer cutoff for an interior ride: 0.02 r_s = 0.04 M. */
@@ -452,5 +459,8 @@ export function buildDropRequest(
     // The apsides preset reads r0 as the apoapsis and this as the periapsis;
     // 0 is inert for every other preset.
     rPeri: options.rPeri ?? 0,
+    argument: options.argument ?? 0,
+    inclination: options.inclination ?? 0,
+    ascendingNode: options.ascendingNode ?? 0,
   };
 }

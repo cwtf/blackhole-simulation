@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { physicsBridge, type ApsidesSolution } from "@/engine/physics-bridge";
-import { orderApsides, type ApsisPair } from "@/physics/apsides";
+import {
+  DEFAULT_APSIDES,
+  orderApsides,
+  type ApsisPair,
+} from "@/physics/apsides";
 import {
   orientFrame,
   tetradToCartesian,
@@ -171,8 +175,8 @@ export interface UseTestObject {
    */
   apsidesSolution: ApsidesSolution | null;
   /** True while a handle is held, which is what puts the preview on screen. */
-  draggingApsis: "periapsis" | "apoapsis" | null;
-  setDraggingApsis: (which: "periapsis" | "apoapsis" | null) => void;
+  draggingApsis: "periapsis" | "apoapsis" | "axis" | null;
+  setDraggingApsis: (which: "periapsis" | "apoapsis" | "axis" | null) => void;
   /**
    * Apsides the last integration actually reached, in M. Compared against the
    * request in the panel, because agreeing with the trajectory is the only
@@ -223,18 +227,15 @@ export function useTestObject(
   // §6.3: the dragged pair. Kept here rather than in the panel so the overlay
   // (which draws the handles) and the panel (which reads them out) see one
   // source of truth, and so a drop can use them without prop-drilling.
-  const [apsides, setApsidesInternal] = useState<ApsisPair>({
-    periapsis: 10,
-    apoapsis: 20,
-  });
+  const [apsides, setApsidesInternal] = useState<ApsisPair>(DEFAULT_APSIDES);
   const [apsidesSolution, setApsidesSolution] =
     useState<ApsidesSolution | null>(null);
   const [draggingApsis, setDraggingApsis] = useState<
-    "periapsis" | "apoapsis" | null
+    "periapsis" | "apoapsis" | "axis" | null
   >(null);
 
   const setApsides = useCallback((pair: ApsisPair) => {
-    setApsidesInternal(orderApsides(pair.periapsis, pair.apoapsis));
+    setApsidesInternal(orderApsides(pair.periapsis, pair.apoapsis, pair));
   }, []);
 
   // Ask Rust what the current pair is. Latest-wins rather than debounced: the
@@ -246,7 +247,7 @@ export function useTestObject(
     const token = ++apsidesRequest.current;
     let cancelled = false;
     physicsBridge
-      .solveApsides(apsides.periapsis, apsides.apoapsis)
+      .solveApsides(apsides.periapsis, apsides.apoapsis, apsides.inclination)
       .then((solution) => {
         if (cancelled || token !== apsidesRequest.current) return;
         setApsidesSolution(solution);
@@ -263,7 +264,7 @@ export function useTestObject(
     // they do. `usePhysicsState` pushes them to the engine from a child
     // component, whose effects React runs before this parent one, so by the
     // time this fires the engine already has the new geometry.
-  }, [apsides.periapsis, apsides.apoapsis, mass, spin]);
+  }, [apsides.periapsis, apsides.apoapsis, apsides.inclination, mass, spin]);
 
   const drop = useCallback(
     (preset: DropPresetName, options?: TestObjectDropOptions) => {

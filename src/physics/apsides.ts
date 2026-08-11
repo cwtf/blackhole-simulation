@@ -22,11 +22,88 @@ export interface ApsisPair {
   periapsis: number;
   /** Outer turning point, in units of M. */
   apoapsis: number;
+  /** Angle from the ascending node to apoapsis in the initial orbit plane. */
+  argument: number;
+  /** Initial plane tilt away from the black-hole equator, in radians. */
+  inclination: number;
+  /** Azimuth of the ascending-node axis around the +Y spin axis, in radians. */
+  ascendingNode: number;
+}
+
+export const DEFAULT_APSIDES: ApsisPair = {
+  periapsis: 10,
+  apoapsis: 20,
+  argument: 0,
+  inclination: 0,
+  ascendingNode: 0,
+};
+
+export function normalizeAngle(angle: number): number {
+  if (!Number.isFinite(angle)) return 0;
+  const wrapped = angle % (Math.PI * 2);
+  return wrapped < 0 ? wrapped + Math.PI * 2 : wrapped;
 }
 
 /** Order a dragged pair. §6.3: dragging one handle past the other swaps them. */
-export function orderApsides(a: number, b: number): ApsisPair {
-  return { periapsis: Math.min(a, b), apoapsis: Math.max(a, b) };
+export function orderApsides(
+  a: number,
+  b: number,
+  orientation: Partial<Omit<ApsisPair, "periapsis" | "apoapsis">> = {},
+): ApsisPair {
+  return {
+    periapsis: Math.min(a, b),
+    apoapsis: Math.max(a, b),
+    argument: normalizeAngle(orientation.argument ?? 0),
+    inclination: Math.max(
+      0,
+      Math.min(Math.PI / 2, orientation.inclination ?? 0),
+    ),
+    ascendingNode: normalizeAngle(orientation.ascendingNode ?? 0),
+  };
+}
+
+export type OrbitBasis = {
+  /** Ascending-node direction in the equatorial plane. */
+  node: [number, number, number];
+  /** In-plane direction 90 degrees from the ascending node. */
+  transverse: [number, number, number];
+  normal: [number, number, number];
+  /** Direction from the hole to apoapsis. */
+  major: [number, number, number];
+  /** In-plane direction 90 degrees from the major axis. */
+  minor: [number, number, number];
+};
+
+/** Initial/osculating orbit basis in the renderer's Y-up frame. */
+export function orbitBasis(pair: ApsisPair): OrbitBasis {
+  const clean = (value: number) => (Math.abs(value) < 1e-15 ? 0 : value);
+  const vec = (values: [number, number, number]) =>
+    values.map(clean) as [number, number, number];
+  const nodeAngle = pair.ascendingNode;
+  const inclination = pair.inclination;
+  const argument = pair.argument;
+  const node = vec([Math.cos(nodeAngle), 0, Math.sin(nodeAngle)]);
+  const transverse = vec([
+    -Math.sin(nodeAngle) * Math.cos(inclination),
+    Math.sin(inclination),
+    Math.cos(nodeAngle) * Math.cos(inclination),
+  ]);
+  const normal = vec([
+    -Math.sin(nodeAngle) * Math.sin(inclination),
+    -Math.cos(inclination),
+    Math.cos(nodeAngle) * Math.sin(inclination),
+  ]);
+  const major = vec([
+    node[0] * Math.cos(argument) + transverse[0] * Math.sin(argument),
+    transverse[1] * Math.sin(argument),
+    node[2] * Math.cos(argument) + transverse[2] * Math.sin(argument),
+  ]);
+  const minor = vec([
+    -node[0] * Math.sin(argument) + transverse[0] * Math.cos(argument),
+    transverse[1] * Math.cos(argument),
+    -node[2] * Math.sin(argument) + transverse[2] * Math.cos(argument),
+  ]);
+  return { node, transverse, normal, major, minor };
 }
 
 /** Eccentricity of the Newtonian ellipse through a pair of apsides. */
@@ -58,13 +135,24 @@ export function newtonianEllipse(
   const e = eccentricity(pair);
   const p = semiLatusRectum(pair);
   const points: [number, number, number][] = [];
+  const { major, minor } = orbitBasis(pair);
   for (let i = 0; i <= segments; i++) {
     const phi = (i / segments) * Math.PI * 2;
     // r = p / (1 - e cos φ): apoapsis at φ = 0, periapsis at φ = π.
     const denominator = 1 - e * Math.cos(phi);
     if (denominator <= 1e-6) continue;
     const r = p / denominator;
-    points.push([r * Math.cos(phi), 0, r * Math.sin(phi)]);
+    const alongMajor = r * Math.cos(phi);
+    const alongMinor = r * Math.sin(phi);
+    points.push(
+      (
+        [
+          major[0] * alongMajor + minor[0] * alongMinor,
+          major[1] * alongMajor + minor[1] * alongMinor,
+          major[2] * alongMajor + minor[2] * alongMinor,
+        ] as [number, number, number]
+      ).map((v) => (Math.abs(v) < 1e-15 ? 0 : v)) as [number, number, number],
+    );
   }
   return points;
 }
@@ -77,9 +165,13 @@ export function apsisHandlePositions(pair: ApsisPair): {
   apoapsis: [number, number, number];
   periapsis: [number, number, number];
 } {
+  const { major } = orbitBasis(pair);
   return {
-    apoapsis: [pair.apoapsis, 0, 0],
-    periapsis: [-pair.periapsis, 0, 0],
+    apoapsis: major.map((v) => v * pair.apoapsis) as [number, number, number],
+    periapsis: major.map((v) => {
+      const value = -v * pair.periapsis;
+      return Math.abs(value) < 1e-15 ? 0 : value;
+    }) as [number, number, number],
   };
 }
 

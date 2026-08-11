@@ -2,16 +2,19 @@ import { describe, it, expect } from "vitest";
 
 import {
   APSIS_DRAG_LIMITS,
+  DEFAULT_APSIDES,
   apsisHandlePositions,
   clampApsis,
   eccentricity,
   newtonianEllipse,
   orderApsides,
+  orbitBasis,
   semiLatusRectum,
 } from "@/physics/apsides";
 import {
   projectToScreen,
   screenToEquatorial,
+  screenToPlane,
   type CameraState,
 } from "@/physics/camera-projection";
 import { DROP_PRESETS, buildDropRequest } from "@/physics/worldline";
@@ -45,8 +48,16 @@ describe("apsis ordering", () => {
   it("swaps a pair dragged past itself", () => {
     // §6.3: "r_peri > r_apo swaps them" — the alternative is a dead zone the
     // drag cannot cross.
-    expect(orderApsides(30, 8)).toEqual({ periapsis: 8, apoapsis: 30 });
-    expect(orderApsides(8, 30)).toEqual({ periapsis: 8, apoapsis: 30 });
+    expect(orderApsides(30, 8)).toEqual({
+      ...DEFAULT_APSIDES,
+      periapsis: 8,
+      apoapsis: 30,
+    });
+    expect(orderApsides(8, 30)).toEqual({
+      ...DEFAULT_APSIDES,
+      periapsis: 8,
+      apoapsis: 30,
+    });
   });
 
   it("clamps a drag to the representable range without a floor at the ISCO", () => {
@@ -63,13 +74,13 @@ describe("apsis ordering", () => {
 
 describe("newtonian preview geometry", () => {
   it("derives eccentricity and semi-latus rectum from the apsides", () => {
-    const pair = { periapsis: 10, apoapsis: 30 };
+    const pair = { ...DEFAULT_APSIDES, periapsis: 10, apoapsis: 30 };
     expect(eccentricity(pair)).toBeCloseTo(0.5, 12);
     expect(semiLatusRectum(pair)).toBeCloseTo(15, 12);
   });
 
   it("is a circle when the two apsides coincide", () => {
-    const pair = { periapsis: 20, apoapsis: 20 };
+    const pair = { ...DEFAULT_APSIDES, periapsis: 20, apoapsis: 20 };
     expect(eccentricity(pair)).toBeCloseTo(0, 12);
     for (const [x, y, z] of newtonianEllipse(pair, 64)) {
       expect(y).toBe(0);
@@ -82,7 +93,7 @@ describe("newtonian preview geometry", () => {
     // point with phi = 0; a preview drawn with the periapsis there instead
     // would be rotated half a turn from the trajectory that replaces it, and
     // the handles would visibly jump on release.
-    const pair = { periapsis: 10, apoapsis: 30 };
+    const pair = { ...DEFAULT_APSIDES, periapsis: 10, apoapsis: 30 };
     const points = newtonianEllipse(pair, 360);
     const first = points[0]!;
     expect(Math.hypot(first[0], first[2])).toBeCloseTo(30, 6);
@@ -94,7 +105,7 @@ describe("newtonian preview geometry", () => {
   });
 
   it("stays in the equatorial plane and between the two apsides", () => {
-    const pair = { periapsis: 6, apoapsis: 45 };
+    const pair = { ...DEFAULT_APSIDES, periapsis: 6, apoapsis: 45 };
     for (const [x, y, z] of newtonianEllipse(pair, 256)) {
       expect(y).toBe(0);
       const r = Math.hypot(x, z);
@@ -104,10 +115,47 @@ describe("newtonian preview geometry", () => {
   });
 
   it("reaches both turning points exactly once each", () => {
-    const pair = { periapsis: 8, apoapsis: 24 };
-    const radii = newtonianEllipse(pair, 720).map(([x, , z]) => Math.hypot(x, z));
+    const pair = { ...DEFAULT_APSIDES, periapsis: 8, apoapsis: 24 };
+    const radii = newtonianEllipse(pair, 720).map(([x, , z]) =>
+      Math.hypot(x, z),
+    );
     expect(Math.min(...radii)).toBeCloseTo(8, 6);
     expect(Math.max(...radii)).toBeCloseTo(24, 6);
+  });
+});
+
+describe("oriented preview geometry", () => {
+  it("tilts the ellipse out of the equatorial plane", () => {
+    const pair = {
+      ...DEFAULT_APSIDES,
+      inclination: Math.PI / 3,
+      argument: Math.PI / 2,
+      ascendingNode: Math.PI / 4,
+    };
+    const handles = apsisHandlePositions(pair);
+    expect(Math.abs(handles.apoapsis[1])).toBeGreaterThan(1);
+    expect(Math.hypot(...handles.apoapsis)).toBeCloseTo(pair.apoapsis, 10);
+    expect(Math.hypot(...orbitBasis(pair).normal)).toBeCloseTo(1, 10);
+  });
+
+  it("round-trips a point through an inclined orbit plane", () => {
+    const pair = {
+      ...DEFAULT_APSIDES,
+      inclination: Math.PI / 4,
+      ascendingNode: 0.7,
+    };
+    const cam: CameraState = { mouseX: 0.62, mouseY: 0.34, zoom: 15 };
+    const world = apsisHandlePositions(pair).apoapsis;
+    const screen = projectToScreen(world, cam, 1280, 720);
+    const back = screenToPlane(screen, cam, {
+      width: 1280,
+      height: 720,
+      normal: orbitBasis(pair).normal,
+    });
+    expect(back).not.toBeNull();
+    expect(back!.world[0]).toBeCloseTo(world[0], 6);
+    expect(back!.world[1]).toBeCloseTo(world[1], 6);
+    expect(back!.world[2]).toBeCloseTo(world[2], 6);
   });
 });
 
@@ -173,10 +221,19 @@ describe("screen to equatorial plane", () => {
 
 describe("drop request", () => {
   it("carries the periapsis for the apsides preset", () => {
-    const request = buildDropRequest("apsides", { r0: 30, rPeri: 9 });
+    const request = buildDropRequest("apsides", {
+      r0: 30,
+      rPeri: 9,
+      argument: 0.4,
+      inclination: 0.5,
+      ascendingNode: 0.6,
+    });
     expect(request.preset).toBe(DROP_PRESETS.apsides);
     expect(request.r0).toBe(30);
     expect(request.rPeri).toBe(9);
+    expect(request.argument).toBe(0.4);
+    expect(request.inclination).toBe(0.5);
+    expect(request.ascendingNode).toBe(0.6);
   });
 
   it("leaves the periapsis inert for every other preset", () => {

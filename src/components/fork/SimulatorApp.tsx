@@ -573,6 +573,9 @@ export const SimulatorApp = ({
             testObject.drop("apsides", {
               r0: testObject.apsides.apoapsis,
               rPeri: testObject.apsides.periapsis,
+              argument: testObject.apsides.argument,
+              inclination: testObject.apsides.inclination,
+              ascendingNode: testObject.apsides.ascendingNode,
             })
           }
         />

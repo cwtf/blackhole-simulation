@@ -1,4 +1,4 @@
-//! Equatorial orbits specified by their two turning points (spec §6.3).
+//! Timelike orbits specified by their two radial turning points (spec §6.3).
 //!
 //! The drop panel used to offer presets plus a
 //! start radius; this lets the user name the **periapsis and apoapsis** and get
@@ -62,6 +62,8 @@ pub struct ApsidesSolution {
     pub energy: f64,
     /// Conserved axial angular momentum L_z = p_phi.
     pub angular_momentum: f64,
+    /// Carter constant. Zero for an equatorial orbit.
+    pub carter_constant: f64,
     /// Launch radius. Always the outer of the two requested radii, and always a
     /// genuine turning point: the object is released there with dr/dtau = 0.
     pub apoapsis: f64,
@@ -71,6 +73,146 @@ pub struct ApsidesSolution {
     /// Smallest periapsis any bound orbit can reach from this apoapsis.
     pub separatrix_periapsis: f64,
     pub kind: ApsidesKind,
+}
+
+/// Full timelike Kerr radial potential, including Carter motion.
+#[must_use]
+pub fn radial_potential(
+    r: f64,
+    m: f64,
+    a: f64,
+    energy: f64,
+    angular_momentum: f64,
+    carter_constant: f64,
+) -> f64 {
+    let delta = r * r - 2.0 * m * r + a * a;
+    let leading = energy * (r * r + a * a) - a * angular_momentum;
+    leading * leading
+        - delta
+            * (r * r
+                + (angular_momentum - a * energy).powi(2)
+                + carter_constant)
+}
+
+fn inclined_constants(
+    m: f64,
+    a: f64,
+    r_peri: f64,
+    r_apo: f64,
+    inclination: f64,
+    seed_energy: f64,
+    seed_l: f64,
+) -> Option<(f64, f64, f64)> {
+    let mut energy = seed_energy;
+    let mut ell = seed_l.abs();
+    let target = inclination.clamp(0.0, std::f64::consts::FRAC_PI_2);
+
+    // Continuation from the well-conditioned equatorial closed form keeps
+    // Newton on the prograde branch at high spin and large inclination.
+    for step in 1..=12 {
+        let angle = target * f64::from(step) / 12.0;
+        let cos_i = angle.cos();
+        let sin2_i = angle.sin().powi(2);
+        let residual = |e: f64, total_l: f64| {
+            let lz = cos_i * total_l;
+            let q = sin2_i * (a * a * (1.0 - e * e) + total_l * total_l);
+            let scaled = |r: f64| {
+                radial_potential(r, m, a, e, lz, q)
+                    / (r.powi(4) + (m * r).powi(2) + 1.0)
+            };
+            [scaled(r_peri), scaled(r_apo)]
+        };
+
+        let mut converged = false;
+        for _ in 0..40 {
+            let f = residual(energy, ell);
+            let norm = f[0].abs().max(f[1].abs());
+            if norm < 2e-12 {
+                converged = true;
+                break;
+            }
+            let he = 1e-6 * energy.abs().max(1.0);
+            let hl = 1e-6 * ell.abs().max(m);
+            let fe = residual(energy + he, ell);
+            let fl = residual(energy, ell + hl);
+            let j00 = (fe[0] - f[0]) / he;
+            let j10 = (fe[1] - f[1]) / he;
+            let j01 = (fl[0] - f[0]) / hl;
+            let j11 = (fl[1] - f[1]) / hl;
+            let det = j00 * j11 - j01 * j10;
+            if !det.is_finite() || det.abs() < 1e-16 {
+                break;
+            }
+            let de = (-f[0] * j11 + j01 * f[1]) / det;
+            let dl = (j10 * f[0] - j00 * f[1]) / det;
+            let mut damping = 1.0;
+            let mut accepted = false;
+            while damping >= 1.0 / 128.0 {
+                let next_e = energy + damping * de;
+                let next_l = ell + damping * dl;
+                if next_e > 0.0 && next_e < 1.0 && next_l > 0.0 {
+                    let next = residual(next_e, next_l);
+                    if next[0].abs().max(next[1].abs()) < norm {
+                        energy = next_e;
+                        ell = next_l;
+                        accepted = true;
+                        break;
+                    }
+                }
+                damping *= 0.5;
+            }
+            if !accepted {
+                break;
+            }
+        }
+        if !converged {
+            return None;
+        }
+    }
+
+    let cos_i = target.cos();
+    let sin2_i = target.sin().powi(2);
+    let lz = cos_i * ell;
+    let q = sin2_i * (a * a * (1.0 - energy * energy) + ell * ell);
+    Some((energy, lz, q.max(0.0)))
+}
+
+fn inclined_capture_constants(
+    m: f64,
+    a: f64,
+    r_apo: f64,
+    inclination: f64,
+    seed_energy: f64,
+    total_l: f64,
+) -> Option<(f64, f64, f64)> {
+    let cos_i = inclination.cos();
+    let sin2_i = inclination.sin().powi(2);
+    let lz = cos_i * total_l;
+    let potential = |energy: f64| {
+        let q = sin2_i * (a * a * (1.0 - energy * energy) + total_l * total_l);
+        radial_potential(r_apo, m, a, energy, lz, q)
+    };
+    // Q is affine in E², so the radial turning equation remains quadratic in
+    // E. Recover its coefficients from three exact evaluations and choose the
+    // future-directed root nearest the equatorial capture branch.
+    let c = potential(0.0);
+    let at_positive_one = potential(1.0);
+    let at_negative_one = potential(-1.0);
+    let b = 0.5 * (at_positive_one - at_negative_one);
+    let qa = 0.5 * (at_positive_one + at_negative_one) - c;
+    real_roots(qa, b, c, 1e-13)
+        .into_iter()
+        .flatten()
+        .filter(|energy| energy.is_finite() && *energy > 0.0 && *energy <= 1.0)
+        .min_by(|left, right| {
+            (left - seed_energy)
+                .abs()
+                .total_cmp(&(right - seed_energy).abs())
+        })
+        .map(|energy| {
+            let q = sin2_i * (a * a * (1.0 - energy * energy) + total_l * total_l);
+            (energy, lz, q.max(0.0))
+        })
 }
 
 /// `R(r)/r` — the cubic whose roots are the turning points. Positive where
@@ -400,6 +542,7 @@ pub fn solve_apsides(metric: &Kerr, r_peri_request: f64, r_apo_request: f64) -> 
             return ApsidesSolution {
                 energy,
                 angular_momentum,
+                carter_constant: 0.0,
                 apoapsis: r_apo,
                 periapsis,
                 separatrix_periapsis: separatrix,
@@ -424,6 +567,7 @@ pub fn solve_apsides(metric: &Kerr, r_peri_request: f64, r_apo_request: f64) -> 
     ApsidesSolution {
         energy,
         angular_momentum,
+        carter_constant: 0.0,
         apoapsis: r_apo,
         periapsis,
         separatrix_periapsis: separatrix,
@@ -432,6 +576,88 @@ pub fn solve_apsides(metric: &Kerr, r_peri_request: f64, r_apo_request: f64) -> 
         } else {
             ApsidesKind::Plunge
         },
+    }
+}
+
+/// Solve radial apsides for a prograde inclined Kerr orbit.
+#[must_use]
+pub fn solve_inclined_apsides(
+    metric: &Kerr,
+    r_peri_request: f64,
+    r_apo_request: f64,
+    inclination: f64,
+) -> ApsidesSolution {
+    let equatorial = solve_apsides(metric, r_peri_request, r_apo_request);
+    if inclination.abs() < 1e-10 {
+        return equatorial;
+    }
+    if equatorial.kind == ApsidesKind::Plunge {
+        return inclined_capture_constants(
+            metric.mass(),
+            metric.a(),
+            equatorial.apoapsis,
+            inclination,
+            equatorial.energy,
+            equatorial.angular_momentum.abs(),
+        )
+        .map_or(equatorial, |(energy, angular_momentum, carter_constant)| {
+            ApsidesSolution {
+                energy,
+                angular_momentum,
+                carter_constant,
+                ..equatorial
+            }
+        });
+    }
+    let Some((energy, angular_momentum, carter_constant)) = inclined_constants(
+        metric.mass(),
+        metric.a(),
+        equatorial.periapsis.unwrap_or(r_peri_request),
+        equatorial.apoapsis,
+        inclination,
+        equatorial.energy,
+        equatorial.angular_momentum,
+    ) else {
+        // The equatorial separatrix remains a conservative capture fallback.
+        // Never invent inclined constants that fail the requested roots.
+        return ApsidesSolution {
+            kind: ApsidesKind::Plunge,
+            periapsis: None,
+            ..equatorial
+        };
+    };
+    // The two equations can also converge on non-adjacent roots, with a
+    // forbidden radial band between them. Such constants do not describe an
+    // orbit moving between the requested handles.
+    for step in 0..=32 {
+        let fraction = f64::from(step) / 32.0;
+        let r = equatorial.periapsis.unwrap_or(r_peri_request)
+            + fraction
+                * (equatorial.apoapsis - equatorial.periapsis.unwrap_or(r_peri_request));
+        let potential = radial_potential(
+            r,
+            metric.mass(),
+            metric.a(),
+            energy,
+            angular_momentum,
+            carter_constant,
+        );
+        if potential < -1e-8 * r.powi(4).max(1.0) {
+            return ApsidesSolution {
+                kind: ApsidesKind::Plunge,
+                periapsis: None,
+                ..equatorial
+            };
+        }
+    }
+    ApsidesSolution {
+        energy,
+        angular_momentum,
+        carter_constant,
+        apoapsis: equatorial.apoapsis,
+        periapsis: equatorial.periapsis,
+        separatrix_periapsis: equatorial.separatrix_periapsis,
+        kind: ApsidesKind::BoundOrbit,
     }
 }
 

@@ -167,3 +167,28 @@ export function screenToEquatorial(
     azimuth: Math.atan2(world[2], world[0]),
   };
 }
+
+/** Intersect a camera ray with a plane through the black hole. */
+export function screenToPlane(
+  screen: { x: number; y: number },
+  cam: CameraState,
+  plane: { width: number; height: number; normal: Vec3 },
+): { world: Vec3; radius: number } | null {
+  const { width, height, normal } = plane;
+  const minRes = Math.min(width, height);
+  const u = (screen.x - 0.5 * width) / minRes;
+  const v = (height - screen.y - 0.5 * height) / minRes;
+  const origin = cameraToWorld([0, 0, -cam.zoom * ZOOM_TO_DISTANCE], cam);
+  const direction = cameraToWorld([u, v, SHADER_FOCAL_LENGTH], cam);
+  const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const denominator = dot(direction, normal);
+  if (Math.abs(denominator) < 1e-6) return null;
+  const t = -dot(origin, normal) / denominator;
+  if (!(t > 0)) return null;
+  const world: Vec3 = [
+    origin[0] + t * direction[0],
+    origin[1] + t * direction[1],
+    origin[2] + t * direction[2],
+  ];
+  return { world, radius: Math.hypot(...world) };
+}

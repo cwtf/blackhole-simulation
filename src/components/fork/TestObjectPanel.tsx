@@ -347,6 +347,9 @@ export function TestObjectPanel({
                       // inner one is the requested periapsis.
                       r0: object.apsides.apoapsis,
                       rPeri: object.apsides.periapsis,
+                      argument: object.apsides.argument,
+                      inclination: object.apsides.inclination,
+                      ascendingNode: object.apsides.ascendingNode,
                     }
                   : {
                       r0,
@@ -473,6 +476,25 @@ function ApsidesSection({ object }: { object: UseTestObject }) {
         aria-label="Apoapsis in units of M"
       />
 
+      <AngleSlider
+        label="Apoapsis angle"
+        value={apsides.argument}
+        max={360}
+        onChange={(argument) => setApsides({ ...apsides, argument })}
+      />
+      <AngleSlider
+        label="Inclination"
+        value={apsides.inclination}
+        max={85}
+        onChange={(inclination) => setApsides({ ...apsides, inclination })}
+      />
+      <AngleSlider
+        label="Ascending node"
+        value={apsides.ascendingNode}
+        max={360}
+        onChange={(ascendingNode) => setApsides({ ...apsides, ascendingNode })}
+      />
+
       <p
         className={`mb-3 font-mono text-[8px] leading-relaxed ${
           captures ? "text-red-300/80" : "text-white/35"
@@ -489,9 +511,20 @@ function ApsidesSection({ object }: { object: UseTestObject }) {
           </>
         ) : (
           <>
-            Bound orbit. Separatrix for this apoapsis:{" "}
-            {apsidesSolution.separatrix.toFixed(2)} M — a periapsis inside the
-            ISCO can still be stable, so that is the real floor, not the ISCO.
+            {apsides.inclination > 1e-6 ? (
+              <>
+                Bound inclined orbit. The Kerr solver validated both radial
+                turning points; the equatorial reference separatrix is{" "}
+                {apsidesSolution.separatrix.toFixed(2)} M.
+              </>
+            ) : (
+              <>
+                Bound orbit. Separatrix for this apoapsis:{" "}
+                {apsidesSolution.separatrix.toFixed(2)} M — a periapsis inside
+                the ISCO can still be stable, so that is the real floor, not the
+                ISCO.
+              </>
+            )}
           </>
         )}
       </p>
@@ -505,6 +538,38 @@ function ApsidesSection({ object }: { object: UseTestObject }) {
           />
         </dl>
       )}
+    </>
+  );
+}
+
+function AngleSlider({
+  label,
+  value,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  onChange: (radians: number) => void;
+}) {
+  const degrees = (value * 180) / Math.PI;
+  return (
+    <>
+      <label className="mb-1 flex justify-between font-mono text-[8px] uppercase tracking-[0.15em] text-white/40">
+        <span>{label}</span>
+        <span className="text-white/70">{degrees.toFixed(0)}°</span>
+      </label>
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={1}
+        value={degrees}
+        onChange={(e) => onChange((Number(e.target.value) * Math.PI) / 180)}
+        className="mb-2 w-full accent-cyan-300"
+        aria-label={`${label} in degrees`}
+      />
     </>
   );
 }

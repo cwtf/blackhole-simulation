@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   projectToScreen,
-  screenToEquatorial,
+  screenToPlane,
   type CameraState,
 } from "@/physics/camera-projection";
 import {
@@ -12,6 +12,8 @@ import {
   clampApsis,
   eccentricity,
   newtonianEllipse,
+  normalizeAngle,
+  orbitBasis,
   orderApsides,
 } from "@/physics/apsides";
 import type { UseTestObject } from "@/hooks/useTestObject";
@@ -58,6 +60,7 @@ export function ApsisHandles({
 }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const axisDrag = useRef({ pointerAngle: 0, argument: 0 });
 
   useEffect(() => {
     const measure = () => {
@@ -71,8 +74,13 @@ export function ApsisHandles({
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  const { apsides, setApsides, apsidesSolution, draggingApsis, setDraggingApsis } =
-    object;
+  const {
+    apsides,
+    setApsides,
+    apsidesSolution,
+    draggingApsis,
+    setDraggingApsis,
+  } = object;
 
   // Memoised because the pointer-move listener closes over it: a fresh object
   // each render would tear down and re-register the drag handlers on every
@@ -84,20 +92,37 @@ export function ApsisHandles({
 
   // The drag reads the pointer against the canvas, so it must not care where
   // the SVG happens to be laid out.
-  const radiusAt = useCallback(
-    (clientX: number, clientY: number): number | null => {
+  const pointAt = useCallback(
+    (clientX: number, clientY: number) => {
       const canvas = document.querySelector("canvas");
       if (!canvas) return null;
       const rect = canvas.getBoundingClientRect();
-      const hit = screenToEquatorial(
+      const hit = screenToPlane(
         { x: clientX - rect.left, y: clientY - rect.top },
         cam,
-        rect.width,
-        rect.height,
+        {
+          width: rect.width,
+          height: rect.height,
+          normal: orbitBasis(apsides).normal,
+        },
       );
-      return hit ? clampApsis(hit.radius) : null;
+      return hit;
     },
-    [cam],
+    [cam, apsides],
+  );
+
+  const angleInPlane = useCallback(
+    (clientX: number, clientY: number): number | null => {
+      const hit = pointAt(clientX, clientY);
+      if (!hit) return null;
+      const { node, transverse } = orbitBasis(apsides);
+      const dot = (
+        v: [number, number, number],
+        basis: [number, number, number],
+      ) => v[0] * basis[0] + v[1] * basis[1] + v[2] * basis[2];
+      return Math.atan2(dot(hit.world, transverse), dot(hit.world, node));
+    },
+    [apsides, pointAt],
   );
 
   // Pointer capture lives on window, not the handle: a fast drag leaves the
@@ -107,12 +132,24 @@ export function ApsisHandles({
     if (!draggingApsis) return undefined;
 
     const onMove = (e: PointerEvent) => {
-      const r = radiusAt(e.clientX, e.clientY);
-      if (r === null) return;
+      if (draggingApsis === "axis") {
+        const angle = angleInPlane(e.clientX, e.clientY);
+        if (angle === null) return;
+        setApsides({
+          ...apsides,
+          argument: normalizeAngle(
+            axisDrag.current.argument + angle - axisDrag.current.pointerAngle,
+          ),
+        });
+        return;
+      }
+      const hit = pointAt(e.clientX, e.clientY);
+      if (!hit) return;
+      const r = clampApsis(hit.radius);
       setApsides(
         draggingApsis === "periapsis"
-          ? orderApsides(r, apsides.apoapsis)
-          : orderApsides(apsides.periapsis, r),
+          ? orderApsides(r, apsides.apoapsis, apsides)
+          : orderApsides(apsides.periapsis, r, apsides),
       );
     };
     const onUp = () => {
@@ -130,12 +167,12 @@ export function ApsisHandles({
     };
   }, [
     draggingApsis,
-    radiusAt,
+    pointAt,
+    angleInPlane,
     setApsides,
     setDraggingApsis,
     onCommit,
-    apsides.periapsis,
-    apsides.apoapsis,
+    apsides,
   ]);
 
   if (!enabled || size.width === 0) return null;
@@ -143,11 +180,23 @@ export function ApsisHandles({
   if (object.view === "first") return null;
 
   const handles = apsisHandlePositions(apsides);
-  const periScreen = projectToScreen(handles.periapsis, cam, size.width, size.height);
-  const apoScreen = projectToScreen(handles.apoapsis, cam, size.width, size.height);
+  const periScreen = projectToScreen(
+    handles.periapsis,
+    cam,
+    size.width,
+    size.height,
+  );
+  const apoScreen = projectToScreen(
+    handles.apoapsis,
+    cam,
+    size.width,
+    size.height,
+  );
 
   const captures = apsidesSolution?.plunges ?? false;
-  const stroke = captures ? "rgba(255, 110, 90, 0.75)" : "rgba(120, 220, 255, 0.6)";
+  const stroke = captures
+    ? "rgba(255, 110, 90, 0.75)"
+    : "rgba(120, 220, 255, 0.6)";
 
   const ellipse = newtonianEllipse(apsides, 192)
     .map((p) => projectToScreen(p, cam, size.width, size.height))
@@ -195,15 +244,37 @@ export function ApsisHandles({
 
       {/* The line of apsides, so the two handles read as one control. */}
       {periScreen.visible && apoScreen.visible && (
-        <line
-          x1={periScreen.x}
-          y1={periScreen.y}
-          x2={apoScreen.x}
-          y2={apoScreen.y}
-          stroke={stroke}
-          strokeWidth={0.75}
-          strokeDasharray="2 6"
-        />
+        <>
+          <line
+            x1={periScreen.x}
+            y1={periScreen.y}
+            x2={apoScreen.x}
+            y2={apoScreen.y}
+            stroke="transparent"
+            strokeWidth={16}
+            style={{ pointerEvents: "stroke", cursor: "grab" }}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const angle = angleInPlane(e.clientX, e.clientY);
+              if (angle === null) return;
+              axisDrag.current = {
+                pointerAngle: angle,
+                argument: apsides.argument,
+              };
+              setDraggingApsis("axis");
+            }}
+          />
+          <line
+            x1={periScreen.x}
+            y1={periScreen.y}
+            x2={apoScreen.x}
+            y2={apoScreen.y}
+            stroke={stroke}
+            strokeWidth={draggingApsis === "axis" ? 1.5 : 0.75}
+            strokeDasharray="2 6"
+          />
+        </>
       )}
 
       <Handle
