@@ -58,8 +58,11 @@ describe("trajectory playback", () => {
   });
 
   it("seeks and operates rewind, pause, and fast-forward", () => {
-    const object = playbackObject();
+    const object = playbackObject({ speed: 63 });
     render(<TrajectoryPlayback object={object} />);
+
+    expect(screen.getByText("Forward 63×")).not.toBeNull();
+    expect(screen.queryByText("1× playback")).toBeNull();
 
     fireEvent.change(screen.getByLabelText("Trajectory progress"), {
       target: { value: "0.25" },

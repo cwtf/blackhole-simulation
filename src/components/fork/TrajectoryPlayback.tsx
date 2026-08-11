@@ -32,12 +32,10 @@ export function TrajectoryPlayback({ object }: { object: UseTestObject }) {
     return null;
   }
 
+  const effectiveSpeed = speed * Math.abs(transportRate);
   const transportLabel = paused
     ? "Paused"
-    : transportRate < 0
-      ? `Rewind ${Math.abs(transportRate)}x`
-      : `Forward ${transportRate}x`;
-  const effectiveSpeed = speed * Math.abs(transportRate);
+    : `${transportRate < 0 ? "Rewind" : "Forward"} ${formatSpeed(effectiveSpeed, false)}`;
   const trajectoryPhase =
     eventHorizonProgress !== null && trajectoryProgress >= eventHorizonProgress
       ? "Inside horizon"
@@ -91,7 +89,7 @@ export function TrajectoryPlayback({ object }: { object: UseTestObject }) {
         <div className="mt-1 flex items-center justify-center gap-2">
           <TransportButton
             label="Rewind"
-            title="Rewind; press repeatedly for 2x, 4x, 8x, and 16x"
+            title="Rewind; press repeatedly to double the speed"
             onClick={() => stepTransport(-1)}
           >
             <Rewind className="h-4 w-4" fill="currentColor" />
@@ -112,7 +110,7 @@ export function TrajectoryPlayback({ object }: { object: UseTestObject }) {
 
           <TransportButton
             label="Fast forward"
-            title="Fast forward; press repeatedly for 2x, 4x, 8x, and 16x"
+            title="Fast forward; press repeatedly to double the speed"
             onClick={() => stepTransport(1)}
           >
             <FastForward className="h-4 w-4" fill="currentColor" />
@@ -121,9 +119,6 @@ export function TrajectoryPlayback({ object }: { object: UseTestObject }) {
           <div className="ml-2 min-w-28 border-l border-white/10 pl-3 font-mono">
             <div className="text-[8px] uppercase tracking-[0.14em] text-white/75">
               {transportLabel}
-            </div>
-            <div className="text-[7px] text-white/35">
-              {formatSpeed(effectiveSpeed, paused)} playback
             </div>
           </div>
         </div>
