@@ -115,15 +115,26 @@ export function stepTransportRate(current: number, direction: -1 | 1): number {
 
 /**
  * Slow playback around the event horizon without changing the user's selected
- * base speed. Full speed resumes half a horizon radius away on either side.
+ * base speed. Within 0.1 horizon radii, speeds above real time settle at
+ * exactly 1x; speeds at or below 1x are left unchanged. Full selected speed
+ * resumes half a horizon radius away.
  */
 export function horizonSlowdownFactor(
   radius: number,
   horizonRadius: number,
+  selectedSpeed: number,
 ): number {
-  if (!(horizonRadius > 0) || !Number.isFinite(radius)) return 1;
+  if (
+    !(horizonRadius > 0) ||
+    !Number.isFinite(radius) ||
+    !(selectedSpeed > 1)
+  ) {
+    return 1;
+  }
   const distance = Math.abs(radius - horizonRadius) / horizonRadius;
-  const t = Math.min(1, distance / 0.5);
+  const minimumFactor = 1 / selectedSpeed;
+  if (distance <= 0.1) return minimumFactor;
+  const t = Math.min(1, (distance - 0.1) / 0.4);
   const smooth = t * t * (3 - 2 * t);
-  return 0.15 + 0.85 * smooth;
+  return minimumFactor + (1 - minimumFactor) * smooth;
 }

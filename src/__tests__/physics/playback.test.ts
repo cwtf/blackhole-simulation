@@ -155,9 +155,15 @@ describe("media transport", () => {
   });
 
   it("slows smoothly at the event horizon and recovers away from it", () => {
-    expect(horizonSlowdownFactor(2, 2)).toBeCloseTo(0.15, 12);
-    expect(horizonSlowdownFactor(2.5, 2)).toBeGreaterThan(0.15);
-    expect(horizonSlowdownFactor(3, 2)).toBe(1);
-    expect(horizonSlowdownFactor(1, 2)).toBe(1);
+    expect(10 * horizonSlowdownFactor(2, 2, 10)).toBe(1);
+    expect(4 * horizonSlowdownFactor(2.1, 2, 4)).toBe(1);
+    expect(horizonSlowdownFactor(2.5, 2, 10)).toBeGreaterThan(0.1);
+    expect(horizonSlowdownFactor(3, 2, 10)).toBe(1);
+    expect(horizonSlowdownFactor(1, 2, 10)).toBe(1);
+  });
+
+  it("does not accelerate playback selected at or below real time", () => {
+    expect(horizonSlowdownFactor(2, 2, 1)).toBe(1);
+    expect(horizonSlowdownFactor(2, 2, 0.5)).toBe(1);
   });
 });

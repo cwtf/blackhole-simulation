@@ -152,7 +152,7 @@ export interface UseTestObject {
   crossesEventHorizon: boolean;
   /** Normalized proper-time position of the event-horizon crossing. */
   eventHorizonProgress: number | null;
-  /** Automatic multiplier applied around the horizon, from 0.15 to 1. */
+  /** Automatic factor that caps near-horizon playback at 1x real time. */
   horizonSlowdown: number;
   /** Per-preset comfort speed, the labelled default detent. */
   comfort: number;
@@ -445,9 +445,14 @@ export function useTestObject(
         timeUnitSeconds(solarMasses),
       );
       const currentPoint = worldline.sampleByProperTime(properTimeRef.current);
+      const selectedSpeed = speed * Math.abs(transportRate);
       const slowdown =
         view === "first" && crossesEventHorizon
-          ? horizonSlowdownFactor(currentPoint.r, eventHorizonRadius)
+          ? horizonSlowdownFactor(
+              currentPoint.r,
+              eventHorizonRadius,
+              selectedSpeed,
+            )
           : 1;
       const delta = dt * baseRate * transportRate * slowdown;
 
@@ -544,7 +549,11 @@ export function useTestObject(
       : null;
   const horizonSlowdown =
     view === "first" && crossesEventHorizon && ridePoint
-      ? horizonSlowdownFactor(ridePoint.r, eventHorizonRadius)
+      ? horizonSlowdownFactor(
+          ridePoint.r,
+          eventHorizonRadius,
+          speed * Math.abs(transportRate),
+        )
       : 1;
 
   // "Ran out of worldline" is not the same as "reached the singularity". A
