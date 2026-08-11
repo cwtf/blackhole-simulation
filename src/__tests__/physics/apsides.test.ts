@@ -10,6 +10,7 @@ import {
   orderApsides,
   orbitBasis,
   semiLatusRectum,
+  standardOrbitElements,
 } from "@/physics/apsides";
 import {
   projectToScreen,
@@ -157,6 +158,54 @@ describe("oriented preview geometry", () => {
     expect(back!.world[1]).toBeCloseTo(world[1], 6);
     expect(back!.world[2]).toBeCloseTo(world[2], 6);
   });
+
+  it("rotates the plane around the fixed line of apsides", () => {
+    const unrotated = {
+      ...DEFAULT_APSIDES,
+      argument: 0.7,
+      inclination: 0.4,
+      ascendingNode: 0.2,
+    };
+    const rotated = {
+      ...unrotated,
+      apsidalRotation: Math.PI / 3,
+    };
+    const before = orbitBasis(unrotated);
+    const after = orbitBasis(rotated);
+
+    expect(after.major[0]).toBeCloseTo(before.major[0], 12);
+    expect(after.major[1]).toBeCloseTo(before.major[1], 12);
+    expect(after.major[2]).toBeCloseTo(before.major[2], 12);
+    expect(after.normal[1]).not.toBeCloseTo(before.normal[1], 6);
+    expect(Math.hypot(...after.normal)).toBeCloseTo(1, 12);
+  });
+
+  it("converts an apsidal-axis rotation to equivalent Kerr elements", () => {
+    const pair = {
+      ...DEFAULT_APSIDES,
+      argument: 0.6,
+      inclination: 0.35,
+      ascendingNode: 1.1,
+      apsidalRotation: -0.5,
+    };
+    const elements = standardOrbitElements(pair);
+    const reconstructed = orbitBasis({
+      ...pair,
+      ...elements,
+      apsidalRotation: 0,
+    });
+    const expected = orbitBasis(pair);
+
+    expect(reconstructed.major[0]).toBeCloseTo(expected.major[0], 10);
+    expect(reconstructed.major[1]).toBeCloseTo(expected.major[1], 10);
+    expect(reconstructed.major[2]).toBeCloseTo(expected.major[2], 10);
+    expect(reconstructed.minor[0]).toBeCloseTo(expected.minor[0], 10);
+    expect(reconstructed.minor[1]).toBeCloseTo(expected.minor[1], 10);
+    expect(reconstructed.minor[2]).toBeCloseTo(expected.minor[2], 10);
+    expect(reconstructed.normal[0]).toBeCloseTo(expected.normal[0], 10);
+    expect(reconstructed.normal[1]).toBeCloseTo(expected.normal[1], 10);
+    expect(reconstructed.normal[2]).toBeCloseTo(expected.normal[2], 10);
+  });
 });
 
 describe("screen to equatorial plane", () => {
@@ -227,6 +276,7 @@ describe("drop request", () => {
       argument: 0.4,
       inclination: 0.5,
       ascendingNode: 0.6,
+      apsidalRotation: 0,
     });
     expect(request.preset).toBe(DROP_PRESETS.apsides);
     expect(request.r0).toBe(30);
@@ -241,5 +291,20 @@ describe("drop request", () => {
     // undefined keeps the FFI signature total.
     expect(buildDropRequest("circular", { r0: 20 }).rPeri).toBe(0);
     expect(buildDropRequest("radialFall", { r0: 20 }).rPeri).toBe(0);
+  });
+
+  it("converts an apsidal-axis rotation before integration", () => {
+    const options = {
+      argument: 0.7,
+      inclination: 0.3,
+      ascendingNode: 0.2,
+      apsidalRotation: 0.5,
+    };
+    const expected = standardOrbitElements({ ...DEFAULT_APSIDES, ...options });
+    const request = buildDropRequest("apsides", options);
+
+    expect(request.argument).toBeCloseTo(expected.argument, 12);
+    expect(request.inclination).toBeCloseTo(expected.inclination, 12);
+    expect(request.ascendingNode).toBeCloseTo(expected.ascendingNode, 12);
   });
 });

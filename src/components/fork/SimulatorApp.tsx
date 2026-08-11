@@ -576,6 +576,7 @@ export const SimulatorApp = ({
               argument: testObject.apsides.argument,
               inclination: testObject.apsides.inclination,
               ascendingNode: testObject.apsides.ascendingNode,
+              apsidalRotation: testObject.apsides.apsidalRotation,
             })
           }
         />

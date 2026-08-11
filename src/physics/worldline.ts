@@ -11,6 +11,8 @@
  * the object is.
  */
 
+import { DEFAULT_APSIDES, standardOrbitElements } from "@/physics/apsides";
+
 /**
  * Floats per sample in the buffer from `integrate_test_object`:
  * `[tau, t, tFar, r, theta, phi, u_t, u_r, u_theta, u_phi, e[0..16]]`.
@@ -383,6 +385,7 @@ export interface DropOptions {
   argument?: number;
   inclination?: number;
   ascendingNode?: number;
+  apsidalRotation?: number;
 }
 
 /** Renderer cutoff for an interior ride: 0.02 r_s = 0.04 M. */
@@ -448,6 +451,19 @@ export function buildDropRequest(
   preset: DropPresetName,
   options: DropOptions = {},
 ): DropRequest {
+  const orientation = options.apsidalRotation
+    ? standardOrbitElements({
+        ...DEFAULT_APSIDES,
+        argument: options.argument ?? 0,
+        inclination: options.inclination ?? 0,
+        ascendingNode: options.ascendingNode ?? 0,
+        apsidalRotation: options.apsidalRotation,
+      })
+    : {
+        argument: options.argument ?? 0,
+        inclination: options.inclination ?? 0,
+        ascendingNode: options.ascendingNode ?? 0,
+      };
   return {
     preset: DROP_PRESETS[preset],
     r0: options.r0 ?? DEFAULT_DROP_RADIUS,
@@ -459,8 +475,8 @@ export function buildDropRequest(
     // The apsides preset reads r0 as the apoapsis and this as the periapsis;
     // 0 is inert for every other preset.
     rPeri: options.rPeri ?? 0,
-    argument: options.argument ?? 0,
-    inclination: options.inclination ?? 0,
-    ascendingNode: options.ascendingNode ?? 0,
+    argument: orientation.argument,
+    inclination: orientation.inclination,
+    ascendingNode: orientation.ascendingNode,
   };
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import type { DropPresetName } from "@/physics/worldline";
+import { standardOrbitElements } from "@/physics/apsides";
 import type { UseTestObject } from "@/hooks/useTestObject";
 import { ViewToggle } from "./ViewToggle";
 import { SpeedControl } from "./SpeedControl";
@@ -350,6 +351,7 @@ export function TestObjectPanel({
                       argument: object.apsides.argument,
                       inclination: object.apsides.inclination,
                       ascendingNode: object.apsides.ascendingNode,
+                      apsidalRotation: object.apsides.apsidalRotation,
                     }
                   : {
                       r0,
@@ -440,6 +442,7 @@ export function TestObjectPanel({
 function ApsidesSection({ object }: { object: UseTestObject }) {
   const { apsides, setApsides, apsidesSolution, measuredApsides } = object;
   const captures = apsidesSolution?.plunges ?? false;
+  const actualInclination = standardOrbitElements(apsides).inclination;
 
   return (
     <>
@@ -494,6 +497,15 @@ function ApsidesSection({ object }: { object: UseTestObject }) {
         max={360}
         onChange={(ascendingNode) => setApsides({ ...apsides, ascendingNode })}
       />
+      <AngleSlider
+        label="Apsidal-axis tilt"
+        value={apsides.apsidalRotation}
+        min={-90}
+        max={90}
+        onChange={(apsidalRotation) =>
+          setApsides({ ...apsides, apsidalRotation })
+        }
+      />
 
       <p
         className={`mb-3 font-mono text-[8px] leading-relaxed ${
@@ -511,7 +523,7 @@ function ApsidesSection({ object }: { object: UseTestObject }) {
           </>
         ) : (
           <>
-            {apsides.inclination > 1e-6 ? (
+            {actualInclination > 1e-6 ? (
               <>
                 Bound inclined orbit. The Kerr solver validated both radial
                 turning points; the equatorial reference separatrix is{" "}
@@ -545,11 +557,13 @@ function ApsidesSection({ object }: { object: UseTestObject }) {
 function AngleSlider({
   label,
   value,
+  min = 0,
   max,
   onChange,
 }: {
   label: string;
   value: number;
+  min?: number;
   max: number;
   onChange: (radians: number) => void;
 }) {
@@ -562,7 +576,7 @@ function AngleSlider({
       </label>
       <input
         type="range"
-        min={0}
+        min={min}
         max={max}
         step={1}
         value={degrees}

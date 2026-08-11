@@ -6,6 +6,7 @@ import { physicsBridge, type ApsidesSolution } from "@/engine/physics-bridge";
 import {
   DEFAULT_APSIDES,
   orderApsides,
+  standardOrbitElements,
   type ApsisPair,
 } from "@/physics/apsides";
 import {
@@ -246,8 +247,13 @@ export function useTestObject(
   useEffect(() => {
     const token = ++apsidesRequest.current;
     let cancelled = false;
+    const orientation = standardOrbitElements(apsides);
     physicsBridge
-      .solveApsides(apsides.periapsis, apsides.apoapsis, apsides.inclination)
+      .solveApsides(
+        apsides.periapsis,
+        apsides.apoapsis,
+        orientation.inclination,
+      )
       .then((solution) => {
         if (cancelled || token !== apsidesRequest.current) return;
         setApsidesSolution(solution);
@@ -264,7 +270,7 @@ export function useTestObject(
     // they do. `usePhysicsState` pushes them to the engine from a child
     // component, whose effects React runs before this parent one, so by the
     // time this fires the engine already has the new geometry.
-  }, [apsides.periapsis, apsides.apoapsis, apsides.inclination, mass, spin]);
+  }, [apsides, mass, spin]);
 
   const drop = useCallback(
     (preset: DropPresetName, options?: TestObjectDropOptions) => {

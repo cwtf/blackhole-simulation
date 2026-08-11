@@ -28,6 +28,8 @@ export interface ApsisPair {
   inclination: number;
   /** Azimuth of the ascending-node axis around the +Y spin axis, in radians. */
   ascendingNode: number;
+  /** Additional plane rotation about the apoapsis/periapsis axis. */
+  apsidalRotation: number;
 }
 
 export const DEFAULT_APSIDES: ApsisPair = {
@@ -36,6 +38,7 @@ export const DEFAULT_APSIDES: ApsisPair = {
   argument: 0,
   inclination: 0,
   ascendingNode: 0,
+  apsidalRotation: 0,
 };
 
 export function normalizeAngle(angle: number): number {
@@ -59,6 +62,10 @@ export function orderApsides(
       Math.min(Math.PI / 2, orientation.inclination ?? 0),
     ),
     ascendingNode: normalizeAngle(orientation.ascendingNode ?? 0),
+    apsidalRotation: Math.max(
+      -Math.PI / 2,
+      Math.min(Math.PI / 2, orientation.apsidalRotation ?? 0),
+    ),
   };
 }
 
@@ -103,7 +110,72 @@ export function orbitBasis(pair: ApsisPair): OrbitBasis {
     transverse[1] * Math.cos(argument),
     -node[2] * Math.sin(argument) + transverse[2] * Math.cos(argument),
   ]);
-  return { node, transverse, normal, major, minor };
+  const rotation = pair.apsidalRotation;
+  const cosRotation = Math.cos(rotation);
+  const sinRotation = Math.sin(rotation);
+  const rotatedMinor = vec([
+    minor[0] * cosRotation - normal[0] * sinRotation,
+    minor[1] * cosRotation - normal[1] * sinRotation,
+    minor[2] * cosRotation - normal[2] * sinRotation,
+  ]);
+  const rotatedNormal = vec([
+    normal[0] * cosRotation + minor[0] * sinRotation,
+    normal[1] * cosRotation + minor[1] * sinRotation,
+    normal[2] * cosRotation + minor[2] * sinRotation,
+  ]);
+  return {
+    node,
+    transverse,
+    normal: rotatedNormal,
+    major,
+    minor: rotatedMinor,
+  };
+}
+
+export type StandardOrbitElements = Pick<
+  ApsisPair,
+  "argument" | "inclination" | "ascendingNode"
+>;
+
+/** Convert the displayed orientation to the three elements consumed by Kerr. */
+export function standardOrbitElements(pair: ApsisPair): StandardOrbitElements {
+  const basis = orbitBasis(pair);
+  let normal = basis.normal;
+
+  // The inclined solver follows the prograde branch. A plane has two normals,
+  // so choose the one in the prograde hemisphere without changing its shape.
+  if (normal[1] > 0) {
+    normal = normal.map((value) => -value) as [number, number, number];
+  }
+
+  const inclination = Math.acos(Math.max(-1, Math.min(1, -normal[1])));
+  if (inclination < 1e-10) {
+    return {
+      argument: normalizeAngle(Math.atan2(basis.major[2], basis.major[0])),
+      inclination: 0,
+      ascendingNode: 0,
+    };
+  }
+
+  const ascendingNode = normalizeAngle(Math.atan2(-normal[0], normal[2]));
+  const node: [number, number, number] = [
+    Math.cos(ascendingNode),
+    0,
+    Math.sin(ascendingNode),
+  ];
+  const transverse: [number, number, number] = [
+    -Math.sin(ascendingNode) * Math.cos(inclination),
+    Math.sin(inclination),
+    Math.cos(ascendingNode) * Math.cos(inclination),
+  ];
+  const dot = (
+    left: [number, number, number],
+    right: [number, number, number],
+  ) => left[0] * right[0] + left[1] * right[1] + left[2] * right[2];
+  const argument = normalizeAngle(
+    Math.atan2(dot(basis.major, transverse), dot(basis.major, node)),
+  );
+  return { argument, inclination, ascendingNode };
 }
 
 /** Eccentricity of the Newtonian ellipse through a pair of apsides. */
