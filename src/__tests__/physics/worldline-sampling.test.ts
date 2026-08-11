@@ -3,9 +3,13 @@ import { describe, it, expect } from "vitest";
 import {
   DRIFT_TOLERANCE,
   DROP_PRESETS,
+  INTERIOR_CUTOFF_PER_MASS,
+  INTERIOR_MAX_STEPS,
   WORLDLINE_STRIDE,
   Worldline,
   buildDropRequest,
+  interiorDropOptions,
+  isInteriorEndpoint,
   type WorldlineAudit,
 } from "@/physics/worldline";
 
@@ -235,6 +239,19 @@ describe("drop requests", () => {
     expect(req.r0).toBe(300);
     expect(req.tangentialFraction).toBe(0.98);
     expect(req.innerRadius).toBe(0.04);
+  });
+
+  it("builds a horizon handover that actually enters the interior", () => {
+    const options = interiorDropOptions(2, 4.08);
+    expect(options.r0).toBe(4.08);
+    expect(options.innerRadius).toBe(INTERIOR_CUTOFF_PER_MASS * 2);
+    expect(options.maxSteps).toBe(INTERIOR_MAX_STEPS);
+    expect(options.innerRadius).toBeLessThan(2 * 2);
+  });
+
+  it("does not label a Kerr horizon endpoint as the singularity", () => {
+    expect(isInteriorEndpoint(1.9, 1)).toBe(false);
+    expect(isInteriorEndpoint(INTERIOR_CUTOFF_PER_MASS, 1)).toBe(true);
   });
 });
 

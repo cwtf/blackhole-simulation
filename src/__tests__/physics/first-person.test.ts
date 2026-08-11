@@ -23,9 +23,9 @@ import {
  * relativistic aberration and Doppler formulas it has never been told about.
  */
 
-/** Closed-form aberration, used only as the expected answer. */
-function aberrate(cosTheta: number, beta: number): number {
-  return (cosTheta + beta) / (1 + beta * cosTheta);
+/** Map a local look direction back to its source direction in the lab frame. */
+function sourceDirection(cosTheta: number, beta: number): number {
+  return (cosTheta - beta) / (1 - beta * cosTheta);
 }
 
 /**
@@ -63,8 +63,9 @@ describe("first-person ray construction", () => {
   });
 
   it("reproduces relativistic aberration without computing it", () => {
-    // buildRay only sums e_0 + n_i e_i. That it lands on the aberration
-    // formula is the whole design claim of §5.
+    // buildRay only sums -e_0 + n_i e_i. That it lands on the inverse
+    // aberration formula is the whole design claim of §5: rendering maps a
+    // direction on the observer's sky back to the source in the lab frame.
     for (const beta of [0.1, 0.5, 0.9, 0.99]) {
       const frame = boostedFrame(beta);
       for (const cosLocal of [-0.9, -0.5, 0, 0.5, 0.9]) {
@@ -74,7 +75,7 @@ describe("first-person ray construction", () => {
         const { direction } = buildRay(frame, n);
         const cosWorld = dot(direction, [0, 0, 1]);
 
-        expect(cosWorld).toBeCloseTo(aberrate(cosLocal, beta), 10);
+        expect(cosWorld).toBeCloseTo(sourceDirection(cosLocal, beta), 10);
       }
     }
   });
@@ -86,12 +87,13 @@ describe("first-person ray construction", () => {
     const beta = 0.95;
     const frame = boostedFrame(beta);
 
-    // A ray the observer sees at 90 degrees to its motion.
+    // A source seen at 90 degrees locally lies behind the lab-frame transverse
+    // plane. Its light is aberrated forward on the observer's sky.
     const { direction } = buildRay(frame, [1, 0, 0]);
     const cosWorld = dot(direction, [0, 0, 1]);
 
-    expect(cosWorld).toBeCloseTo(beta, 10);
-    expect(cosWorld).toBeGreaterThan(0);
+    expect(cosWorld).toBeCloseTo(-beta, 10);
+    expect(cosWorld).toBeLessThan(0);
   });
 
   it("keeps directions unit length at every speed", () => {
@@ -114,14 +116,14 @@ describe("first-person ray construction", () => {
       const ray = buildRay(frame, [sinLocal, 0, cosLocal]);
       // Flat space: r_s = 0, so the lapse is 1 and only motion contributes.
       const shift = frequencyShift(ray, 1, 0);
-      expect(shift).toBeCloseTo(1 / (gamma * (1 + beta * cosLocal)), 9);
+      expect(shift).toBeCloseTo(1 / (gamma * (1 - beta * cosLocal)), 9);
     }
   });
 
   it("blueshifts ahead and redshifts behind", () => {
     const frame = boostedFrame(0.6);
-    const ahead = frequencyShift(buildRay(frame, [0, 0, -1]), 1, 0);
-    const behind = frequencyShift(buildRay(frame, [0, 0, 1]), 1, 0);
+    const ahead = frequencyShift(buildRay(frame, [0, 0, 1]), 1, 0);
+    const behind = frequencyShift(buildRay(frame, [0, 0, -1]), 1, 0);
     expect(ahead).toBeGreaterThan(1);
     expect(behind).toBeLessThan(1);
   });
@@ -141,6 +143,15 @@ describe("first-person ray construction", () => {
     const frame = boostedFrame(0);
     const ray = buildRay(frame, [0, 0, 1]);
     expect(frequencyShift(ray, 2, 2)).toBe(0);
+  });
+
+  it("traces an infaller's side view back outward instead of into the singularity", () => {
+    // The observer moves inward along -z. A sideways past-directed ray has an
+    // outward +z component; the old +e0 construction gave it an inward one and
+    // made every free-look direction black after crossing the horizon.
+    const frame = boostedFrame(-0.9);
+    const { direction } = buildRay(frame, [1, 0, 0]);
+    expect(direction[2]).toBeGreaterThan(0);
   });
 });
 
@@ -185,10 +196,22 @@ describe("coordinate basis", () => {
     const theta = Math.PI / 2;
     const phi = 0;
     const flat = [
-      1, 0, 0, 0, // e_0 = d/dt
-      0, 1, 0, 0, // e_1 = d/dr
-      0, 0, 1 / r, 0, // e_2 = unit d/dtheta
-      0, 0, 0, 1 / r, // e_3 = unit d/dphi (equator)
+      1,
+      0,
+      0,
+      0, // e_0 = d/dt
+      0,
+      1,
+      0,
+      0, // e_1 = d/dr
+      0,
+      0,
+      1 / r,
+      0, // e_2 = unit d/dtheta
+      0,
+      0,
+      0,
+      1 / r, // e_3 = unit d/dphi (equator)
     ];
     const frame = tetradToCartesian(flat, r, theta, phi);
 
@@ -243,12 +266,16 @@ describe("free-look", () => {
     const beta = 0.9;
     const frame = boostedFrame(beta);
 
-    const sideways = rotateByQuaternion([0, 0, 1], [0, Math.SQRT1_2, 0, Math.SQRT1_2]);
+    const sideways = rotateByQuaternion(
+      [0, 0, 1],
+      [0, Math.SQRT1_2, 0, Math.SQRT1_2],
+    );
     const { direction } = buildRay(frame, sideways);
 
-    // The resulting world direction still leans toward +z (the motion).
-    expect(direction[2]).toBeCloseTo(beta, 9);
-    expect(direction[2]).toBeGreaterThan(0);
+    // The source direction in the lab leans opposite +z; aberration carries
+    // that source forward onto the moving observer's local sky.
+    expect(direction[2]).toBeCloseTo(-beta, 9);
+    expect(direction[2]).toBeLessThan(0);
   });
 });
 

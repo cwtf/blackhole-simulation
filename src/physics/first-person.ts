@@ -9,15 +9,15 @@
  * function either. A pixel's ray is built as
  *
  * ```text
- *   p = e_0 + n_x e_1 + n_y e_2 + n_z e_3
+ *   q = -e_0 + n_x e_1 + n_y e_2 + n_z e_3
  * ```
  *
- * where `n` is the unit look direction in the observer's own frame. Because
- * `e_0` is the *moving* observer's time leg, adding it tilts every direction
- * toward the motion — that tilt IS relativistic aberration, and it appears
- * without anything in this file mentioning aberration. The same construction
- * yields the observed frequency, so Doppler and gravitational shift come from
- * the same place.
+ * where `n` is the unit look direction in the observer's own frame and `q` is
+ * the past-directed ray used by the renderer. A photon arriving from `n` has
+ * future-directed momentum `p = e_0 - n_i e_i`; tracing its path back to its
+ * source uses `q = -p`. This sign matters inside the horizon: future-directed
+ * rays all fall inward, while past-directed rays can lead back to the outside
+ * universe. The same construction yields aberration and the frequency shift.
  */
 
 export type Vec3 = [number, number, number];
@@ -107,12 +107,12 @@ export function tetradToCartesian(
 export interface FirstPersonRay {
   /** Direction to march, in the shader's Cartesian frame (unit length). */
   direction: Vec3;
-  /** Contravariant time component `p^t` of the photon. */
+  /** Contravariant time component `q^t` of the past-directed viewing ray. */
   timeComponent: number;
 }
 
 /**
- * Build the photon direction for a look direction `n` in the observer's frame.
+ * Build the past-directed viewing ray for `n` in the observer's frame.
  *
  * `n` must be a unit vector; it is the direction the observer is looking,
  * already including any free-look rotation. Free-look belongs here — applied
@@ -126,16 +126,16 @@ export function buildRay(frame: CartesianTetrad, n: Vec3): FirstPersonRay {
   const sz: Vec3 = frame.e3.spatial;
   const s0: Vec3 = frame.e0.spatial;
 
-  const px = s0[0] + n[0] * sx[0] + n[1] * sy[0] + n[2] * sz[0];
-  const py = s0[1] + n[0] * sx[1] + n[1] * sy[1] + n[2] * sz[1];
-  const pz = s0[2] + n[0] * sx[2] + n[1] * sy[2] + n[2] * sz[2];
+  const px = -s0[0] + n[0] * sx[0] + n[1] * sy[0] + n[2] * sz[0];
+  const py = -s0[1] + n[0] * sx[1] + n[1] * sy[1] + n[2] * sz[1];
+  const pz = -s0[2] + n[0] * sx[2] + n[1] * sy[2] + n[2] * sz[2];
 
   const len = Math.hypot(px, py, pz) || 1;
 
   return {
     direction: [px / len, py / len, pz / len],
     timeComponent:
-      frame.e0.time +
+      -frame.e0.time +
       n[0] * frame.e1.time +
       n[1] * frame.e2.time +
       n[2] * frame.e3.time,
@@ -146,13 +146,13 @@ export function buildRay(frame: CartesianTetrad, n: Vec3): FirstPersonRay {
  * Ratio of observed to emitted frequency for light from a static source at
  * infinity, arriving along this ray.
  *
- * The photon's conserved energy is `E = -p_t = (1 - r_s/r) p^t` in
- * Schwarzschild; the observer measures unit frequency by construction (the
- * frame-time component of `p` is 1), so the shift is `1/E`. Greater than 1 is
- * a blueshift.
+ * The renderer stores the opposite, past-directed tangent `q = -p`, so the
+ * future-directed photon's conserved energy has the same magnitude as
+ * `(1 - r_s/r) q^t` in Schwarzschild. The observer measures unit frequency by
+ * construction, so the shift is `1/|E|`. Greater than 1 is a blueshift.
  *
  * Both the gravitational and the Doppler parts are in here at once, because
- * `p^t` already carries the observer's motion through `e_0`.
+ * `q^t` already carries the observer's motion through `e_0`.
  */
 export function frequencyShift(
   ray: FirstPersonRay,
@@ -160,8 +160,8 @@ export function frequencyShift(
   rs: number,
 ): number {
   const lapse = 1 - rs / r;
-  const energy = lapse * ray.timeComponent;
-  if (!(Math.abs(energy) > 1e-12)) return 0;
+  const energy = Math.abs(lapse * ray.timeComponent);
+  if (!(energy > 1e-12)) return 0;
   return 1 / energy;
 }
 
@@ -215,7 +215,8 @@ export function orientFrame(tetrad: TetradArray): {
   up: { index: number; sign: number };
   forward: { index: number; sign: number };
 } {
-  const component = (a: number, mu: number) => Math.abs(tetrad[a * 4 + mu] ?? 0);
+  const component = (a: number, mu: number) =>
+    Math.abs(tetrad[a * 4 + mu] ?? 0);
 
   const pick = (mu: number, used: Set<number>) => {
     let best = -1;

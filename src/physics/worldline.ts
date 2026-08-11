@@ -368,6 +368,34 @@ export interface DropRequest {
   rPeri: number;
 }
 
+export interface DropOptions {
+  r0?: number;
+  tangentialFraction?: number;
+  radialVelocity?: number;
+  innerRadius?: number;
+  maxSteps?: number;
+  maxSamples?: number;
+  rPeri?: number;
+}
+
+/** Renderer cutoff for an interior ride: 0.02 r_s = 0.04 M. */
+export const INTERIOR_CUTOFF_PER_MASS = 0.04;
+
+/** Step budget verified by the Rust horizon-handover regression tests. */
+export const INTERIOR_MAX_STEPS = 800_000;
+
+export function interiorDropOptions(mass: number, r0: number): DropOptions {
+  return {
+    r0,
+    innerRadius: INTERIOR_CUTOFF_PER_MASS * mass,
+    maxSteps: INTERIOR_MAX_STEPS,
+  };
+}
+
+export function isInteriorEndpoint(radius: number, mass: number): boolean {
+  return radius <= INTERIOR_CUTOFF_PER_MASS * mass;
+}
+
 /**
  * Build a drop request from UI state.
  *
@@ -378,15 +406,7 @@ export interface DropRequest {
  */
 export function buildDropRequest(
   preset: DropPresetName,
-  options: {
-    r0?: number;
-    tangentialFraction?: number;
-    radialVelocity?: number;
-    innerRadius?: number;
-    maxSteps?: number;
-    maxSamples?: number;
-    rPeri?: number;
-  } = {},
+  options: DropOptions = {},
 ): DropRequest {
   return {
     preset: DROP_PRESETS[preset],

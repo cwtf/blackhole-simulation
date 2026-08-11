@@ -20,6 +20,8 @@ import {
 import {
   Worldline,
   buildDropRequest,
+  isInteriorEndpoint,
+  type DropOptions,
   type DropPresetName,
 } from "@/physics/worldline";
 
@@ -77,6 +79,11 @@ export interface TestObjectReadout {
 /** Which camera the simulation is being watched from (spec §1.6). */
 export type ViewMode = "third" | "first";
 
+export interface TestObjectDropOptions extends DropOptions {
+  /** Hold a newly integrated line at tau=0 until its caller finishes setup. */
+  startPaused?: boolean;
+}
+
 /**
  * The rider's frame, resolved for the renderer.
  *
@@ -130,10 +137,7 @@ export interface UseTestObject {
   firstPersonFrame: FirstPersonFrame | null;
   /** True once the rider has reached the singularity. */
   reachedSingularity: boolean;
-  drop: (
-    preset: DropPresetName,
-    options?: { r0?: number; tangentialFraction?: number; rPeri?: number },
-  ) => void;
+  drop: (preset: DropPresetName, options?: TestObjectDropOptions) => void;
   reset: () => void;
   readout: TestObjectReadout | null;
 
@@ -196,6 +200,7 @@ export function useTestObject(
 
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef<number>(0);
+  const dropRequestRef = useRef(0);
 
   // §6.3: the dragged pair. Kept here rather than in the panel so the overlay
   // (which draws the handles) and the panel (which reads them out) see one
@@ -243,20 +248,22 @@ export function useTestObject(
   }, [apsides.periapsis, apsides.apoapsis, mass, spin]);
 
   const drop = useCallback(
-    (
-      preset: DropPresetName,
-      options?: { r0?: number; tangentialFraction?: number; rPeri?: number },
-    ) => {
+    (preset: DropPresetName, options?: TestObjectDropOptions) => {
+      const token = ++dropRequestRef.current;
+      const { startPaused = false, ...requestOptions } = options ?? {};
       setStatus("integrating");
       setError(null);
+      setWorldline(null);
       setFarTime(0);
       setProperTime(0);
+      setPaused(startPaused);
       setLook({ yaw: 0, pitch: 0 });
 
-      const request = buildDropRequest(preset, options);
+      const request = buildDropRequest(preset, requestOptions);
       physicsBridge
         .dropTestObject(request)
         .then(({ samples, audit }) => {
+          if (token !== dropRequestRef.current) return;
           const line = new Worldline(samples, audit);
           setWorldline(line);
           setStatus("ready");
@@ -272,6 +279,7 @@ export function useTestObject(
           }
         })
         .catch((err: unknown) => {
+          if (token !== dropRequestRef.current) return;
           setStatus("error");
           setError(err instanceof Error ? err.message : String(err));
         });
@@ -280,11 +288,13 @@ export function useTestObject(
   );
 
   const reset = useCallback(() => {
+    ++dropRequestRef.current;
     setWorldline(null);
     setStatus("idle");
     setError(null);
     setFarTime(0);
     setProperTime(0);
+    setPaused(false);
     setLook({ yaw: 0, pitch: 0 });
     // Riding an object that no longer exists is not a state the UI should be
     // able to reach.
@@ -323,7 +333,9 @@ export function useTestObject(
       // one stored worldline by different parameters (§1.6). Advancing both
       // keeps a view switch continuous rather than jumping.
       setFarTime((prev) => prev + dt * rate * OBSERVER_CLOCK_RATIO);
-      setProperTime((prev) => prev + dt * rate);
+      setProperTime((prev) =>
+        Math.min(prev + dt * rate, worldline.totalProperTime),
+      );
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -369,14 +381,14 @@ export function useTestObject(
   // stable circular orbit exhausts its step budget with the object still
   // happily orbiting; announcing an arrival there would be a lie. Require the
   // integration to have actually terminated at the inner radius
-  // (endReason 0 = ReachedInnerRadius) and the object to be inside the
-  // horizon.
+  // (endReason 0 = ReachedInnerRadius) at the explicit interior cutoff. The
+  // old `r < 2M` check mislabeled the outer Kerr horizon as the singularity.
   const reachedSingularity =
     !!ridePoint &&
     !!worldline &&
     properTime >= worldline.totalProperTime &&
     worldline.audit.endReason === 0 &&
-    ridePoint.r < 2 * mass;
+    isInteriorEndpoint(ridePoint.r, mass);
 
   let firstPersonFrame: FirstPersonFrame | null = null;
   if (view === "first" && ridePoint && worldline) {
@@ -409,7 +421,12 @@ export function useTestObject(
       pos,
       // e0 is the observer's own 4-velocity: it must NOT be rotated by
       // free-look, or looking around would change where you are going.
-      e0: [cart.e0.spatial[0], cart.e0.spatial[1], cart.e0.spatial[2], cart.e0.time],
+      e0: [
+        cart.e0.spatial[0],
+        cart.e0.spatial[1],
+        cart.e0.spatial[2],
+        cart.e0.time,
+      ],
       e1: resolve(legs[axes.right.index]!, axes.right.sign),
       e2: resolve(legs[axes.up.index]!, axes.up.sign),
       e3: resolve(legs[axes.forward.index]!, axes.forward.sign),

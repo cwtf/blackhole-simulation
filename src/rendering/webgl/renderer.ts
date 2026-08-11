@@ -440,10 +440,34 @@ export class WebGLRenderer {
     this.uniformBatcher.set1f("u_fp_enabled", fp ? 1.0 : 0.0);
     if (fp) {
       this.uniformBatcher.set3f("u_fp_pos", fp.pos[0], fp.pos[1], fp.pos[2]);
-      this.uniformBatcher.set4f("u_fp_e0", fp.e0[0], fp.e0[1], fp.e0[2], fp.e0[3]);
-      this.uniformBatcher.set4f("u_fp_e1", fp.e1[0], fp.e1[1], fp.e1[2], fp.e1[3]);
-      this.uniformBatcher.set4f("u_fp_e2", fp.e2[0], fp.e2[1], fp.e2[2], fp.e2[3]);
-      this.uniformBatcher.set4f("u_fp_e3", fp.e3[0], fp.e3[1], fp.e3[2], fp.e3[3]);
+      this.uniformBatcher.set4f(
+        "u_fp_e0",
+        fp.e0[0],
+        fp.e0[1],
+        fp.e0[2],
+        fp.e0[3],
+      );
+      this.uniformBatcher.set4f(
+        "u_fp_e1",
+        fp.e1[0],
+        fp.e1[1],
+        fp.e1[2],
+        fp.e1[3],
+      );
+      this.uniformBatcher.set4f(
+        "u_fp_e2",
+        fp.e2[0],
+        fp.e2[1],
+        fp.e2[2],
+        fp.e2[3],
+      );
+      this.uniformBatcher.set4f(
+        "u_fp_e3",
+        fp.e3[0],
+        fp.e3[1],
+        fp.e3[2],
+        fp.e3[3],
+      );
       this.uniformBatcher.set4f(
         "u_fp_look",
         fp.look[0],
@@ -470,7 +494,7 @@ export class WebGLRenderer {
     );
     this.uniformBatcher.set1f("u_time", this.time);
     this.uniformBatcher.set1f("u_mass", params.mass);
-    this.uniformBatcher.set1f("u_spin", params.spin * params.mass);
+    this.uniformBatcher.set1f("u_spin", params.spin);
     this.uniformBatcher.set1f("u_zoom", params.zoom * 2.0); // FIX: Decoupled from mass so it grows visibly
     this.uniformBatcher.set1f(
       "u_disk_size",

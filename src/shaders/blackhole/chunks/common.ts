@@ -44,8 +44,9 @@ export const COMMON_CHUNK = `
   // direction before it is lifted through these complete four-dimensional
   // legs, preserving orthonormality and the aberration pattern.
   //
-  // Every 1st-person ray is p = e0 + n.x*e1 + n.y*e2 + n.z*e3. Aberration and
-  // the Doppler shift are consequences of that sum, never applied separately.
+  // Rendering traces arriving light toward its source with the past-directed
+  // ray q = -e0 + n.x*e1 + n.y*e2 + n.z*e3. Aberration and the Doppler shift
+  // are consequences of that sum, never applied separately.
   uniform float u_fp_enabled;
   uniform vec3 u_fp_pos;
   uniform vec4 u_fp_e0;

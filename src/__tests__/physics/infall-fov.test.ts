@@ -89,7 +89,9 @@ describe("first-person field of view", () => {
     // The goldens are all 3rd-person. Those branches keep their own focal
     // lengths and must not be swept up in a 1st-person change.
     expect(fragmentShaderSource).toContain("normalize(vec3(uv, 1.5))");
-    expect(fragmentShaderSource).toContain("qrot(u_camQuat, normalize(vec3(uv, 1.2)))");
+    expect(fragmentShaderSource).toContain(
+      "qrot(u_camQuat, normalize(vec3(uv, 1.2)))",
+    );
   });
 });
 
@@ -103,10 +105,27 @@ describe("first-person free-look", () => {
 
   it("uses the same rotated direction for aberration and frequency shift", () => {
     expect(fragmentShaderSource).toContain(
-      "u_fp_e0.xyz + n.x * u_fp_e1.xyz + n.y * u_fp_e2.xyz + n.z * u_fp_e3.xyz",
+      "-u_fp_e0.xyz + n.x * u_fp_e1.xyz + n.y * u_fp_e2.xyz + n.z * u_fp_e3.xyz",
     );
     expect(fragmentShaderSource).toContain(
-      "u_fp_e0.w + n.x * u_fp_e1.w + n.y * u_fp_e2.w + n.z * u_fp_e3.w",
+      "-u_fp_e0.w + n.x * u_fp_e1.w + n.y * u_fp_e2.w + n.z * u_fp_e3.w",
+    );
+  });
+
+  it("traces arriving light backward in time", () => {
+    // Inside a horizon every future-directed ray goes inward. A renderer must
+    // use the opposite time leg or no free-look direction can recover the sky.
+    expect(fragmentShaderSource).toContain("rd = normalize(-u_fp_e0.xyz +");
+    expect(fragmentShaderSource).not.toContain("rd = normalize(u_fp_e0.xyz +");
+  });
+
+  it("does not apply the exterior capture margin to the rider", () => {
+    expect(fragmentShaderSource).toContain("rh * (firstPerson ? 1.0 : 1.15)");
+  });
+
+  it("requires an interior ray to escape before sampling the sky", () => {
+    expect(fragmentShaderSource).toContain(
+      "if (!firstPerson || escaped) background = sky(v)",
     );
   });
 });

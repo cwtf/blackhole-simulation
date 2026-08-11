@@ -89,14 +89,17 @@ void main() {
         // view for that trajectory. Drop from 20M for the classic 42 degrees.
         const float FP_FOCAL_LENGTH = 0.45;
         // Rotate in the rider's local frame before lifting the ray through the
-        // complete tetrad. Rotating only world-space spatial components would
-        // break orthonormality and distort aberration during free-look.
+        // complete tetrad. The renderer follows arriving photons backward in
+        // time: an arrival from n has future momentum e0 - n_i*ei, so its
+        // past-directed viewing ray is -e0 + n_i*ei. Using +e0 accidentally
+        // launches every ray toward the singularity after horizon crossing.
         vec3 n = qrot(u_fp_look, normalize(vec3(uv, FP_FOCAL_LENGTH)));
         fpLocalDir = n;
         ro = u_fp_pos;
-        rd = normalize(u_fp_e0.xyz + n.x * u_fp_e1.xyz + n.y * u_fp_e2.xyz + n.z * u_fp_e3.xyz);
-        // Contravariant p^t from the same legs; the conserved energy follows.
-        fpEnergy = u_fp_e0.w + n.x * u_fp_e1.w + n.y * u_fp_e2.w + n.z * u_fp_e3.w;
+        rd = normalize(-u_fp_e0.xyz + n.x * u_fp_e1.xyz + n.y * u_fp_e2.xyz + n.z * u_fp_e3.xyz);
+        // Contravariant q^t from the same past-directed ray. Its magnitude
+        // gives the corresponding future-directed photon's conserved energy.
+        fpEnergy = -u_fp_e0.w + n.x * u_fp_e1.w + n.y * u_fp_e2.w + n.z * u_fp_e3.w;
     } else if (length(u_camPos) > 0.001) {
         ro = u_camPos;
         rd = qrot(u_camQuat, normalize(vec3(uv, 1.2)));
@@ -147,16 +150,20 @@ void main() {
 
     // === LOW QUALITY MODE ===
 #if defined(RAY_QUALITY_LOW) || defined(RAY_QUALITY_OFF)
-    vec3 bg = sky(rd);
-    float d = length(cross(ro, rd));
-    float shadow = smoothstep(rh * 1.2, rh * 0.9, d);
-    float photonGlowIndicator = exp(-abs(d - rph) * 12.0) * 0.8;
-    vec3 glowCol = vec3(0.3, 0.6, 1.0) * photonGlowIndicator;
-    float diskMask = smoothstep(isco * 2.0, isco * 1.0, d) * (1.0 - smoothstep(isco * 1.0, isco * 0.8, d));
-    vec3 diskColIndicator = vec3(1.0, 0.7, 0.3) * diskMask * 0.6;
-    vec3 col = bg * (1.0 - shadow) + glowCol + diskColIndicator;
-    fragColor = vec4(pow(col, vec3(0.4545)), 1.0);
-    return;
+    // The straight-line LOD has no horizon-penetrating camera model. Keep it
+    // for the exterior view, but always use the full path for an active rider.
+    if (!firstPerson) {
+        vec3 bg = sky(rd);
+        float d = length(cross(ro, rd));
+        float shadow = smoothstep(rh * 1.2, rh * 0.9, d);
+        float photonGlowIndicator = exp(-abs(d - rph) * 12.0) * 0.8;
+        vec3 glowCol = vec3(0.3, 0.6, 1.0) * photonGlowIndicator;
+        float diskMask = smoothstep(isco * 2.0, isco * 1.0, d) * (1.0 - smoothstep(isco * 1.0, isco * 0.8, d));
+        vec3 diskColIndicator = vec3(1.0, 0.7, 0.3) * diskMask * 0.6;
+        vec3 col = bg * (1.0 - shadow) + glowCol + diskColIndicator;
+        fragColor = vec4(pow(col, vec3(0.4545)), 1.0);
+        return;
+    }
 #endif
 
     // === KERR GEODESIC RAYMARCHING ===
@@ -186,6 +193,7 @@ void main() {
     vec3 accumulatedColor = vec3(0.0);
     float accumulatedAlpha = 0.0;
     bool hitHorizon = false;
+    bool escaped = false;
     float maxRedshift = 0.0;
 
     // Blue noise dithering
@@ -199,7 +207,10 @@ void main() {
     float impactParam = length(cross(ro, rd));
     bool redshiftInitialized = false;
 
-    int maxSteps = int(min(float(u_maxRaySteps), 500.0));
+    // Interior rays need enough steps to get from the horizon to the escape
+    // radius. Quality-tier budgets as low as 32 otherwise end while the ray is
+    // still in the strong field and leave the rider with a black frame.
+    int maxSteps = firstPerson ? 500 : int(min(float(u_maxRaySteps), 500.0));
     vec3 p_prev = p;
 
     // Inner Shadow Culling (Horizon-Safe, Bardeen 1973):
@@ -229,11 +240,14 @@ void main() {
                 hitHorizon = true;
                 break;
             }
-        } else if(r < rh * ${PHYSICS_CONSTANTS.rayMarching.horizonThreshold.toFixed(2)}) {
+        } else if(r < rh * (firstPerson ? 1.0 : ${PHYSICS_CONSTANTS.rayMarching.horizonThreshold.toFixed(2)})) {
             hitHorizon = true;
             break;
         }
-        if(r > MAX_DIST) break;
+        if(r > MAX_DIST) {
+            escaped = true;
+            break;
+        }
 
         // Adaptive step size (curvature-aware)
         // Original formula preserved for r <= 30 (disk + strong field region).
@@ -260,14 +274,20 @@ void main() {
             // straight, so grow the step with radius and let it leave.
             if (dot(p, v) > 0.0) {
                 dt = max(dt, r * 0.1);
-                if (r > ESCAPE_RADIUS) break;
+                if (r > ESCAPE_RADIUS) {
+                    escaped = true;
+                    break;
+                }
             }
         }
 
         float sphereProx = abs(r - rph);
         dt = min(dt, MIN_STEP + sphereProx * 0.15);
 
-        float hRefinement = smoothstep(0.2, 0.0, abs(p.y));
+        float diskOuterForStep = max(M * u_disk_size, isco * 1.1);
+        float hRefinement = (r > isco && r < diskOuterForStep)
+            ? smoothstep(0.2, 0.0, abs(p.y))
+            : 0.0;
         float currentDt = dt * (1.0 - hRefinement * 0.7);
 
         vec3 accel = vec3(0.0);
@@ -347,7 +367,10 @@ void main() {
     // Background
     vec3 background = vec3(0.0);
 #ifdef ENABLE_STARS
-    background = sky(v);
+    // Exterior rendering retains its historical fallback at the step budget.
+    // For an interior rider, only a ray proven to have escaped may sample the
+    // outside sky; an unresolved ray must not turn into a false star field.
+    if (!firstPerson || escaped) background = sky(v);
 
     if (firstPerson) {
         // Shift the sky by the SAME factor the ray construction produced.

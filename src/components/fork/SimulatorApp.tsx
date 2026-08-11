@@ -14,7 +14,7 @@ import { ApsisHandles } from "@/components/fork/ApsisHandles";
 import { SingularityCard } from "@/components/fork/SingularityCard";
 import { useTestObject, type UseTestObject } from "@/hooks/useTestObject";
 import { physicsBridge } from "@/engine/physics-bridge";
-import type { DropPresetName } from "@/physics/worldline";
+import { interiorDropOptions, type DropPresetName } from "@/physics/worldline";
 import {
   DEFAULT_MASS_PRESET,
   findPreset,
@@ -187,14 +187,21 @@ export const SimulatorApp = ({
   // worldline actually exists.
   const [pendingRideFrom, setPendingRideFrom] = useState<number | null>(null);
 
-  const handleCrossHorizon = useCallback((radius: number) => {
-    const rider = testObjectRef.current;
-    // Already falling: a second trigger would restart the drop and throw away
-    // the crossing the user is in the middle of.
-    if (!rider || rider.view === "first") return;
-    rider.drop("radialFall", { r0: radius });
-    setPendingRideFrom(radius);
-  }, []);
+  const handleCrossHorizon = useCallback(
+    (radius: number) => {
+      const rider = testObjectRef.current;
+      // Already falling: a second trigger would restart the drop and throw away
+      // the crossing the user is in the middle of.
+      if (!rider || rider.view === "first" || rider.status === "integrating")
+        return;
+      rider.drop("radialFall", {
+        ...interiorDropOptions(params.mass, radius),
+        startPaused: true,
+      });
+      setPendingRideFrom(radius);
+    },
+    [params.mass],
+  );
 
   const {
     mouse,
@@ -251,7 +258,9 @@ export const SimulatorApp = ({
   const [realObjectId, setRealObjectId] = useState<string | null>(
     initialObjectId ?? null,
   );
-  const realObject = realObjectId ? (findRealBlackHole(realObjectId) ?? null) : null;
+  const realObject = realObjectId
+    ? (findRealBlackHole(realObjectId) ?? null)
+    : null;
 
   const massPreset = realObject
     ? massPresetForRealBlackHole(realObject)
@@ -299,7 +308,7 @@ export const SimulatorApp = ({
   useEffect(() => {
     if (pendingRideFrom === null) return;
 
-    if (testObject.canRideAlong) {
+    if (testObject.canRideAlong && testObject.worldline) {
       // Pace the plunge (§1.9 — playback only, the trajectory is already
       // integrated and is identical at every speed).
       //
@@ -309,10 +318,11 @@ export const SimulatorApp = ({
       // (π/2)√(r0³/2M), which at the handover radius is under 3 M — about
       // 0.95 wall seconds at comfort speed. That is a blink, not a crossing.
       // Retarget so the descent is actually watchable.
-      const tauToSingularity =
-        (Math.PI / 2) *
-        Math.sqrt(Math.pow(pendingRideFrom, 3) / (2 * params.mass));
-      const geometricRate = tauToSingularity / HORIZON_FALL_SECONDS;
+      // Pace the trajectory Rust actually integrated. The old analytic value
+      // assumed Schwarzschild and a run to r=0 even when the buffer stopped at
+      // the outer horizon, which made the terminal frame arrive immediately.
+      const geometricRate =
+        testObject.worldline.totalProperTime / HORIZON_FALL_SECONDS;
       const speed = geometricRate * timeUnitSeconds(massPreset.solarMasses);
       testObject.setSpeed(
         Math.min(
@@ -322,6 +332,7 @@ export const SimulatorApp = ({
       );
 
       testObject.setView("first");
+      testObject.setPaused(false);
       setPendingRideFrom(null);
     } else if (testObject.status === "error") {
       setPendingRideFrom(null);
@@ -516,7 +527,7 @@ export const SimulatorApp = ({
             spin={params.spin}
             className="absolute inset-0 z-0"
           />
-        ) : useWebGPU ? (
+        ) : useWebGPU && !firstPersonActive ? (
           <WebGPUCanvas
             params={params}
             mouse={mouse}
@@ -576,7 +587,9 @@ export const SimulatorApp = ({
           onSelectRealObject={handleSelectRealObject}
           onRestoreRealObject={handleRestoreRealObject}
           params={params}
-          onParamsChange={(patch) => setParams((prev) => ({ ...prev, ...patch }))}
+          onParamsChange={(patch) =>
+            setParams((prev) => ({ ...prev, ...patch }))
+          }
           preset={dropPreset}
           onPresetChange={setDropPreset}
         />
