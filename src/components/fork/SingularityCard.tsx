@@ -73,6 +73,10 @@ export function SingularityCard({
     ? object.worldline.at(object.worldline.count - 1).r
     : 0;
 
+  // Where the run actually stopped, rather than a constant that used to be true
+  // for every preset and no longer is.
+  const endRadius = turningRadius;
+
   return (
     <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" />
@@ -185,7 +189,7 @@ export function SingularityCard({
 
         <p className="mt-3 font-mono text-[7px] text-white/30">
           {arrived
-            ? "Geometric units (G = c = M = 1). Integration ends at r = 0.02 r_s, not at r = 0 — the last two percent is unrenderable, not skipped."
+            ? `Geometric units (G = c = M = 1). Integration ends at r = ${endRadius.toPrecision(2)} M, not at r = 0 — the last stretch is unrenderable, not skipped. How deep it goes is set by where a body of this scale stops holding together.`
             : "Geometric units (G = c = M = 1). The turning point is where dr/dτ changes sign; it agrees with the analytic root of the radial potential to five decimals."}
         </p>
       </div>

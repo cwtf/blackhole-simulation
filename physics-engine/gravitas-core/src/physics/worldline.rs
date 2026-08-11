@@ -30,6 +30,15 @@ use crate::invariants::renormalize_timelike;
 use crate::metric::{Kerr, Metric, Orbit};
 use crate::physics::plunge::circular_angular_velocity;
 
+/// How far `g_{mu nu} u^mu u^nu` may sit from −1 before a state is treated as
+/// diverged rather than as a point on a timelike worldline.
+///
+/// Loose next to the integrator's 1e-10 step tolerance, and deliberately so:
+/// this is not a quality bar, it is the line past which a result stops being a
+/// result. A well-behaved interior run holds the shell to ~1e-7 even at the
+/// 0.003 M floor, while a genuine breakdown misses it by three orders or more.
+pub const MASS_SHELL_TOLERANCE: f64 = 1e-4;
+
 /// One recorded point on the worldline.
 ///
 /// Both clocks are stored so the two camera views can sample the same
@@ -747,7 +756,23 @@ pub fn integrate_worldline(
         // would break every eccentric and apsides preset. Inside r_+ there is
         // nothing left to orbit — see `WorldlineEnd::ReachedTurningPoint` for
         // why the chart, not the solver, is what runs out here.
+        //
+        // A reversal is only *physics* if the state is still on the mass shell.
+        // Deep enough in — past about 1e-3 M, where the equatorial approach to
+        // the Kerr ring singularity makes Sigma = r^2 vanish — the integration
+        // breaks down and r can start rising for no better reason than
+        // accumulated error. Reporting that as a bounce dressed a numerical
+        // failure up as a result: at a* = 0.5 with a 3e-4 cutoff the run
+        // returned `ReachedTurningPoint` carrying u.u = +4.7e3, five orders off
+        // the shell it is supposed to be on. So the shell is checked before the
+        // label is applied, and a diverged state is named for what it is.
         if state.x[1] < r_horizon && state.x[1] > r {
+            let u = crate::physics::tetrad::four_velocity(&state, metric);
+            let norm = crate::physics::tetrad::dot(metric, state.x[1], state.x[2], &u, &u);
+            if (norm + 1.0).abs() > MASS_SHELL_TOLERANCE {
+                worldline.end = WorldlineEnd::NormalizationFailure;
+                break;
+            }
             worldline.end = WorldlineEnd::ReachedTurningPoint;
             worldline.samples.push(sample_at(tau, &state));
             break;

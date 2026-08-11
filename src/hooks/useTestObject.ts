@@ -306,7 +306,11 @@ export function useTestObject(
       // An explicit `innerRadius`/`maxSteps` from the caller still wins — the
       // horizon handover in SimulatorApp sets its own.
       const request = buildDropRequest(preset, {
-        ...interiorDropOptions(mass, requestOptions.r0 ?? DEFAULT_DROP_RADIUS),
+        ...interiorDropOptions(
+          mass,
+          requestOptions.r0 ?? DEFAULT_DROP_RADIUS,
+          solarMasses,
+        ),
         ...requestOptions,
       });
       physicsBridge
@@ -333,9 +337,10 @@ export function useTestObject(
           setError(err instanceof Error ? err.message : String(err));
         });
     },
-    // `mass` scales the interior cutoff, so a drop integrated for one hole must
-    // not be reused for another.
-    [mass],
+    // Both masses scale the interior cutoff — `mass` sets its ceiling and
+    // `solarMasses` sets how deep the rider's body survives — so a drop
+    // integrated for one hole must not be reused for another.
+    [mass, solarMasses],
   );
 
   const reset = useCallback(() => {

@@ -66,6 +66,21 @@ export const PHYSICS_CONSTANTS = {
     minStep: 0.01, // Minimum ray step size (precision)
     maxStep: 1.2, // Maximum ray step size (speed)
     horizonThreshold: 1.15, // Multiplier for Event Horizon hit detection
+    /**
+     * Where a ray traced from *inside* the horizon is treated as having reached
+     * the singularity, as a multiple of r_s.
+     *
+     * This has to stay strictly below the deepest radius the 1st-person camera
+     * can occupy, or the rider ends up inside its own absorbing radius and every
+     * ray terminates on the first step — a black frame that looks exactly like a
+     * broken shader. It was 0.02 r_s = 0.04 M, which was fine while the ride
+     * always stopped there too; `interiorCutoff` now takes a supermassive ride
+     * down to 0.003 M, so this has to go with it.
+     *
+     * 0.001 r_s = 0.002 M leaves a factor of 1.5 under the 0.003 M floor.
+     * `interior_termination_stays_below_the_deepest_cutoff` pins the relationship.
+     */
+    interiorTermination: 0.001,
     description:
       "Parameters controlling the ray marching engine's precision and range.",
   },

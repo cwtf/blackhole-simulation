@@ -71,6 +71,65 @@ export const BODY_FAILURE_G = 1000;
 export const MAX_RADIAL_STRETCH = 6;
 export const MIN_TRANSVERSE_SQUEEZE = 0.18;
 
+/**
+ * How deep the integrator can be pushed before it stops producing physics, in
+ * units of M.
+ *
+ * Measured, not chosen. A drop from 20 M holds the mass shell to ~1e-7 down to
+ * 3e-3 M at every spin, and comes apart below 1e-3 M for a* != 0 — because an
+ * equatorial plunge toward a Kerr hole is an approach to the **ring
+ * singularity**, where Sigma = r^2 + a^2 cos^2(theta) collapses to r^2 and the
+ * metric genuinely diverges. That is a property of the spacetime, not of the
+ * solver, so no step size fixes it. Schwarzschild has no ring and stays clean to
+ * ~3e-5 M.
+ *
+ * 0.003 M keeps every spin inside the healthy range with a factor of three in
+ * hand.
+ */
+export const INTERIOR_FLOOR_PER_MASS = 0.003;
+
+/**
+ * How far inside the failure radius the ride has to reach for the deformation to
+ * be worth showing. At `r_fail / 3` the scale factors are 0.33 and 1.73 — plainly
+ * visible, without demanding a depth the integrator cannot deliver.
+ */
+export const FAILURE_DEPTH_FACTOR = 3;
+
+/**
+ * Where to stop an interior ride, given the hole's geometric and physical mass.
+ *
+ * The shallow default exists because there is nothing to see below it: at 0.04 M
+ * a rider around a stellar-mass hole has been in pieces since 53 M, so pushing
+ * deeper only spends accuracy. But around Sagittarius A* the body does not fail
+ * until 0.0096 M, *inside* that cutoff — so the ride ended while the suit was
+ * still intact, and the strain this module computes was never once visible.
+ *
+ * So the cutoff follows the physics: deep enough to clear the failure radius,
+ * never deeper than the integrator can support, never shallower than the
+ * original default. Concretely, with `mass = 1`:
+ *
+ * ```text
+ *   Stellar  10 M☉    r_fail = 53.3 M     -> 0.04    M  (unchanged)
+ *   Sgr A*   4.15e6   r_fail = 0.0096 M   -> 0.0032  M  (deeper; strain appears)
+ *   M87*     6.5e9    r_fail = 7.1e-5 M   -> 0.003   M  (floored; out of reach)
+ * ```
+ *
+ * M87* is the honest casualty: its failure radius is an order of magnitude below
+ * the floor, so a rider there stays intact to the end of the worldline at any
+ * spin but zero. That is the correct answer for a 6.5e9 M☉ hole, not a shortfall.
+ */
+export function interiorCutoff(
+  mass: number,
+  solarMasses: number,
+  cutoffPerMass: number,
+): number {
+  const ceiling = cutoffPerMass * mass;
+  const floor = INTERIOR_FLOOR_PER_MASS * mass;
+  const wanted = tidalFailureRadius(solarMasses) / FAILURE_DEPTH_FACTOR;
+  if (!(wanted > 0)) return ceiling;
+  return Math.min(ceiling, Math.max(floor, wanted));
+}
+
 export interface SuitStrain {
   /**
    * Scale along both transverse axes of the tetrad — `e1` (right, azimuthal)

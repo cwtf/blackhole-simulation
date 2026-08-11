@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useTestObject } from "@/hooks/useTestObject";
 import {
+  INTERIOR_CUTOFF_PER_MASS,
   WORLDLINE_END,
   WORLDLINE_STRIDE,
   type WorldlineAudit,
 } from "@/physics/worldline";
+import { interiorCutoff } from "@/physics/tidal";
 
 const bridgeMocks = vi.hoisted(() => ({
   dropTestObject: vi.fn(),
@@ -88,8 +90,13 @@ describe("horizon handover playback", () => {
 
     const request = bridgeMocks.dropTestObject.mock.calls[0]?.[0];
     expect(request.r0).toBe(20);
-    // 0.04 * mass, and strictly inside the horizon rather than at it.
-    expect(request.innerRadius).toBeCloseTo(0.08, 10);
+    // Whatever `interiorCutoff` decides for this hole — derived, not restated, so
+    // the two cannot drift apart. What matters here is only that it is a real
+    // radius strictly inside the horizon.
+    expect(request.innerRadius).toBeCloseTo(
+      interiorCutoff(mass, 4.154e6, INTERIOR_CUTOFF_PER_MASS),
+      12,
+    );
     expect(request.innerRadius).toBeGreaterThan(0);
     expect(request.innerRadius).toBeLessThan(2 * mass);
     expect(request.maxSteps).toBe(800_000);

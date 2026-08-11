@@ -1,3 +1,5 @@
+import { interiorCutoff } from "@/physics/tidal";
+
 /**
  * Dropped test object: worldline storage and sampling (spec §1.5 / §1.6).
  *
@@ -388,7 +390,12 @@ export interface DropOptions {
   apsidalRotation?: number;
 }
 
-/** Renderer cutoff for an interior ride: 0.02 r_s = 0.04 M. */
+/**
+ * Shallowest an interior ride ever stops: 0.02 r_s = 0.04 M.
+ *
+ * The ceiling rather than the value. `interiorCutoff` pushes below this when the
+ * rider's body fails deeper in — see `physics/tidal.ts`.
+ */
 export const INTERIOR_CUTOFF_PER_MASS = 0.04;
 
 /** Release radius assumed when a drop does not name one, in M. */
@@ -397,10 +404,24 @@ export const DEFAULT_DROP_RADIUS = 20;
 /** Step budget verified by the Rust horizon-handover regression tests. */
 export const INTERIOR_MAX_STEPS = 800_000;
 
-export function interiorDropOptions(mass: number, r0: number): DropOptions {
+/**
+ * Options for a ride that follows the object through the horizon.
+ *
+ * `solarMasses` is not decoration: the stopping radius is chosen against the
+ * radius at which a body stops holding itself together, and that is a question
+ * about the physical mass rather than about r/r_s. A stellar-mass hole keeps the
+ * shallow 0.04 M cutoff because its rider has been in pieces since 53 M; Sgr A*
+ * goes deeper because otherwise the ride ends while the suit is still intact.
+ * See `interiorCutoff`.
+ */
+export function interiorDropOptions(
+  mass: number,
+  r0: number,
+  solarMasses: number,
+): DropOptions {
   return {
     r0,
-    innerRadius: INTERIOR_CUTOFF_PER_MASS * mass,
+    innerRadius: interiorCutoff(mass, solarMasses, INTERIOR_CUTOFF_PER_MASS),
     maxSteps: INTERIOR_MAX_STEPS,
   };
 }
@@ -434,6 +455,14 @@ export const WORLDLINE_END = {
  * r = −6.47, and `-6.47 <= 0.04` is true — so this reported "at the
  * singularity" for a rider that had overflowed to a point *outside* the hole,
  * and the arrival card duly appeared over a frozen frame.
+ */
+/**
+ * Whether a radius counts as arriving at the interior cutoff.
+ *
+ * Compares against the *shallowest* cutoff, so a ride that went deeper than the
+ * ceiling still reads as an arrival. Tightening this to the actual per-preset
+ * cutoff would make the singularity card depend on the mass twice over, once
+ * through the cutoff and once through the test.
  */
 export function isInteriorEndpoint(radius: number, mass: number): boolean {
   return radius > 0 && radius <= INTERIOR_CUTOFF_PER_MASS * mass;

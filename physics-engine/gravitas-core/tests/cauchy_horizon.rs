@@ -258,6 +258,54 @@ fn proper_time_advances_all_the_way_to_the_last_sample() {
     }
 }
 
+/// A bounce is a claim about physics, so it may only be made about a state that
+/// is still on the mass shell.
+///
+/// Pushed deep enough — past about 1e-3 M, where an equatorial plunge is closing
+/// on the Kerr ring singularity and Sigma = r^2 collapses — the integration comes
+/// apart and r can start rising from accumulated error alone. That used to be
+/// reported as `ReachedTurningPoint`: at a* = 0.5 with a 3e-4 cutoff the run
+/// returned a "bounce" carrying u.u = +4.7e3, five orders off the shell. The
+/// label now requires the shell, so a breakdown is named `NormalizationFailure`
+/// instead of being dressed up as a result.
+#[test]
+fn a_bounce_is_never_reported_for_a_diverged_state() {
+    for spin in [0.0, 0.5, 0.7, 0.9, 0.99] {
+        let bh = Kerr::kerr_schild(M, spin);
+        // Sweep well past the depth the integrator can actually support.
+        for cutoff in [CUTOFF, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5] {
+            for r0 in [20.0 * M, 1.02 * bh.event_horizon()] {
+                let w = integrate_worldline(
+                    &bh,
+                    DropSpec::RadialFall { r: r0 },
+                    &WorldlineOptions {
+                        inner_radius: cutoff,
+                        max_steps: 800_000,
+                        max_samples: 8_000,
+                        ..Default::default()
+                    },
+                );
+                if w.end != WorldlineEnd::ReachedTurningPoint {
+                    continue;
+                }
+                let last = w.samples.last().expect("a bounce records its sample");
+                let norm = dot(&bh, last.r, last.theta, &last.u, &last.u);
+                assert!(
+                    (norm + 1.0).abs() < 1e-4,
+                    "spin {spin}, cutoff {cutoff:.0e}, r0 {r0:.3}: bounce reported \
+                     with u.u = {norm:.4e} at r = {:.6}",
+                    last.r
+                );
+                assert!(
+                    last.r > 0.0 && last.r.is_finite(),
+                    "spin {spin}: bounce reported at r = {}",
+                    last.r
+                );
+            }
+        }
+    }
+}
+
 #[test]
 fn bound_orbits_are_not_cut_short_by_the_turning_point_test() {
     // Eccentric and apsides orbits turn around on every revolution, outside the

@@ -13,6 +13,9 @@ import {
   WORLDLINE_END,
   type WorldlineAudit,
 } from "@/physics/worldline";
+import { INTERIOR_FLOOR_PER_MASS, tidalFailureRadius } from "@/physics/tidal";
+import { PHYSICS_CONSTANTS } from "@/configs/physics.config";
+import { fragmentShaderSource } from "@/shaders/blackhole/fragment.glsl";
 
 /**
  * §1.6's sampling contract, in isolation from the renderer.
@@ -243,11 +246,46 @@ describe("drop requests", () => {
   });
 
   it("builds a horizon handover that actually enters the interior", () => {
-    const options = interiorDropOptions(2, 4.08);
+    // Stellar mass: the rider fails at 53 M, far outside the ceiling, so the
+    // cutoff stays at the shallow default and nothing is spent going deeper.
+    const options = interiorDropOptions(2, 4.08, 10);
     expect(options.r0).toBe(4.08);
     expect(options.innerRadius).toBe(INTERIOR_CUTOFF_PER_MASS * 2);
     expect(options.maxSteps).toBe(INTERIOR_MAX_STEPS);
     expect(options.innerRadius).toBeLessThan(2 * 2);
+  });
+
+  it("goes deeper when the rider's body survives past the ceiling", () => {
+    // Sgr A*: the body holds together to 0.0096 M, inside the 0.04 M ceiling, so
+    // stopping there would end the ride with the suit still intact and the whole
+    // deformation unseen.
+    const shallow = interiorDropOptions(1, 20, 10).innerRadius!;
+    const deep = interiorDropOptions(1, 20, 4.154e6).innerRadius!;
+    expect(shallow).toBe(INTERIOR_CUTOFF_PER_MASS);
+    expect(deep).toBeLessThan(shallow);
+    expect(deep).toBeGreaterThanOrEqual(INTERIOR_FLOOR_PER_MASS);
+    // Comfortably inside the failure radius, which is the point.
+    expect(deep).toBeLessThan(tidalFailureRadius(4.154e6));
+
+    // M87* fails below what the integrator can reach, so it floors rather than
+    // chasing a depth that produces garbage.
+    expect(interiorDropOptions(1, 20, 6.5e9).innerRadius).toBe(
+      INTERIOR_FLOOR_PER_MASS,
+    );
+  });
+
+  it("keeps the shader's ray termination below the deepest cutoff", () => {
+    // If the rider can descend past the radius at which the shader absorbs every
+    // interior ray, the frame goes black and looks like a broken shader.
+    const deepest = INTERIOR_FLOOR_PER_MASS * 1;
+    const terminationPerMass =
+      PHYSICS_CONSTANTS.rayMarching.interiorTermination * 2; // r_s = 2M
+    expect(terminationPerMass).toBeLessThan(deepest);
+    // And the shader really uses it, rather than a stale literal.
+    expect(fragmentShaderSource).toContain(
+      `rs * ${PHYSICS_CONSTANTS.rayMarching.interiorTermination.toFixed(4)}`,
+    );
+    expect(fragmentShaderSource).not.toContain("r < rs * 0.02");
   });
 
   it("does not label a Kerr horizon endpoint as the singularity", () => {

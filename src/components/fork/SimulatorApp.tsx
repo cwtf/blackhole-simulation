@@ -180,6 +180,11 @@ export const SimulatorApp = ({
   // declared below this hook, so the handover reaches it through a ref.
   const testObjectRef = useRef<UseTestObject | null>(null);
 
+  // The handover's stopping radius depends on the *physical* mass, because that
+  // is what decides how deep the rider survives. `massPreset` is resolved well
+  // below this callback, so it arrives the same way `testObject` does.
+  const solarMassesRef = useRef(1);
+
   // `setView("first")` refuses while `canRideAlong` is false, and the drop it
   // depends on is integrated asynchronously in the physics worker — so asking
   // for the ride in the same tick as the drop silently does nothing. The
@@ -195,7 +200,7 @@ export const SimulatorApp = ({
       if (!rider || rider.view === "first" || rider.status === "integrating")
         return;
       rider.drop("radialFall", {
-        ...interiorDropOptions(params.mass, radius),
+        ...interiorDropOptions(params.mass, radius, solarMassesRef.current),
         startPaused: true,
       });
       setPendingRideFrom(radius);
@@ -301,6 +306,7 @@ export const SimulatorApp = ({
   // Published for `handleCrossHorizon`, which is declared above this line
   // because `useCamera` needs it.
   testObjectRef.current = testObject;
+  solarMassesRef.current = massPreset.solarMasses;
 
   // Second half of the horizon handover: the worldline has arrived, so the
   // ride can actually begin. Also clears the latch if the drop failed, rather

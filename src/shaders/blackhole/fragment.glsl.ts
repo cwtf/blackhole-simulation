@@ -236,7 +236,7 @@ void main() {
             // Inside, only the singularity terminates a ray; anything that
             // climbs back out is light that fell in with us and is still
             // visible as the shrinking window on the outside universe.
-            if(r < rs * 0.02) {
+            if(r < rs * ${PHYSICS_CONSTANTS.rayMarching.interiorTermination.toFixed(4)}) {
                 hitHorizon = true;
                 break;
             }
