@@ -11,6 +11,7 @@ import {
 } from "@/physics/apsides";
 import {
   orientFrame,
+  killingLegs,
   tetradToCartesian,
   type CartesianLeg,
 } from "@/physics/first-person";
@@ -106,6 +107,16 @@ export interface FirstPersonFrame {
   e1: [number, number, number, number];
   e2: [number, number, number, number];
   e3: [number, number, number, number];
+  /**
+   * The same four legs with the time index lowered, `(e_a)_t`, ordered to
+   * match `e0..e3` above.
+   *
+   * Contracted against a look direction these give the arriving photon's
+   * conserved Killing energy, whose sign tells the shader whether an interior
+   * ray is looking at the outside universe or at the past horizon. See
+   * `killingLegs` in `physics/first-person.ts`.
+   */
+  killing: [number, number, number, number];
   look: [number, number, number, number];
   /**
    * Draw the rider's own suit in the lower half of the frame.
@@ -582,6 +593,19 @@ export function useTestObject(
     const axes = orientFrame(ridePoint.tetrad);
     const legs: CartesianLeg[] = [cart.e0, cart.e1, cart.e2, cart.e3];
 
+    // Lowered time components of the same legs, reordered and sign-flipped in
+    // lockstep with the spatial ones above. They are linear in the leg, so the
+    // same permutation and sign that orient the camera apply unchanged; the
+    // two must stay in step or the energy would be contracted against the
+    // wrong axis and the interior dark region would land in the wrong place.
+    const killing = killingLegs(
+      ridePoint.tetrad,
+      ridePoint.r,
+      ridePoint.theta,
+      mass,
+      spin,
+    );
+
     const pos = worldline.toCartesian(ridePoint);
     firstPersonFrame = {
       pos,
@@ -596,6 +620,12 @@ export function useTestObject(
       e1: resolve(legs[axes.right.index]!, axes.right.sign),
       e2: resolve(legs[axes.up.index]!, axes.up.sign),
       e3: resolve(legs[axes.forward.index]!, axes.forward.sign),
+      killing: [
+        killing[0]!,
+        killing[axes.right.index]! * axes.right.sign,
+        killing[axes.up.index]! * axes.up.sign,
+        killing[axes.forward.index]! * axes.forward.sign,
+      ],
       look: quaternionFromYawPitch(look.yaw, look.pitch),
       showBody: showSuit,
       // Depends on solarMasses, not on mass: the failure radius is set by the

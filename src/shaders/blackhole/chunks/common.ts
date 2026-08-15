@@ -55,6 +55,22 @@ export const COMMON_CHUNK = `
   uniform vec4 u_fp_e3;
   uniform vec4 u_fp_look;
 
+  // The same four legs with their time index LOWERED: (e_a)_t, packed as
+  // (e0, e1, e2, e3). Computed on the CPU by physics/first-person.ts, which is
+  // the only place that knows which chart the worldline was integrated in.
+  //
+  // Contracting these against the look direction gives the arriving photon's
+  // conserved Killing energy E = -p_t, and inside the horizon the SIGN of that
+  // number is the whole causal structure: E > 0 means the photon fell in from
+  // the outside universe, E < 0 means it can only have come through the past
+  // horizon and must render black. E is conserved, so one test at the observer
+  // settles the entire ray without marching it.
+  //
+  // The contravariant e_a^t in the .w slots above cannot answer this. It is
+  // off by the lapse, which changes sign at the horizon, and in Kerr-Schild it
+  // misses the g_tr and g_tphi terms outright.
+  uniform vec4 u_fp_killing;
+
   // The rider's own suit, drawn in the frame's local coordinates so looking
   // down shows the body it is attached to. 0 hides it. Free-look turns the
   // head, not the torso, so the suit stays put while the view swings over it.

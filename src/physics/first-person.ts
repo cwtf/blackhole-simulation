@@ -143,6 +143,84 @@ export function buildRay(frame: CartesianTetrad, n: Vec3): FirstPersonRay {
 }
 
 /**
+ * Covariant time components `(e_a)_t = g_{t nu} e_a^nu` of the four frame legs,
+ * in ingoing Kerr-Schild coordinates.
+ *
+ * These four numbers are what lets the renderer ask the only question that
+ * separates sky from dark once the rider is inside the horizon: **could this
+ * photon have come from the exterior universe at all?**
+ *
+ * The answer is the sign of the photon's conserved Killing energy
+ * `E = -p_t = -p . d/dt`. In the exterior, `d/dt` is timelike and
+ * future-directed, so every photon emitted out there carries `E > 0` and keeps
+ * it — `E` is conserved, so a single test at the observer settles the whole
+ * ray with no marching. A photon measured inside with `E < 0` cannot have
+ * crossed the future horizon from region I; it can only have come through the
+ * past horizon, which in a hole formed by collapse means the frozen surface of
+ * the collapsing star and in this simulation means nothing at all. Black.
+ *
+ * Deep inside, that is the effect that dominates the view. The cone of
+ * directions with `E > 0` closes as `cos psi < 1/beta` with
+ * `beta = sqrt(2M/r)`, so the dark region grows from 42.1 degrees at crossing
+ * (see `infall-fov.test.ts`) toward a full hemisphere at the singularity.
+ * Without this test the marcher can only ask "does this ray reach r = 0", a
+ * Newtonian question with no bearing on the causal structure, and the interior
+ * renders as an ordinary exterior view of a distant hole.
+ *
+ * The lowering has to use the same chart the worldline was integrated in.
+ * `worldline.rs` uses ingoing Kerr-Schild — Boyer-Lindquist blows up at the
+ * horizon, which is precisely where the rider is going — whose t-row is
+ *
+ * ```text
+ *   g_tt = -(1 - A),  g_tr = A,  g_ttheta = 0,  g_tphi = -A a sin^2(theta)
+ *   A = 2 M r / Sigma,  Sigma = r^2 + a^2 cos^2(theta)
+ * ```
+ *
+ * `spin` is the dimensionless `a*`, matching `Kerr::a() = spin * mass`.
+ */
+export function killingLegs(
+  tetrad: TetradArray,
+  r: number,
+  theta: number,
+  mass: number,
+  spin: number,
+): [number, number, number, number] {
+  const a = spin * mass;
+  const cosTheta = Math.cos(theta);
+  const sinTheta = Math.sin(theta);
+  const sigma = r * r + a * a * cosTheta * cosTheta;
+  const A = (2 * mass * r) / sigma;
+
+  const gtt = -(1 - A);
+  const gtr = A;
+  const gtphi = -A * a * sinTheta * sinTheta;
+
+  const lower = (leg: number): number =>
+    gtt * (tetrad[leg * 4] ?? 0) +
+    gtr * (tetrad[leg * 4 + 1] ?? 0) +
+    gtphi * (tetrad[leg * 4 + 3] ?? 0);
+
+  return [lower(0), lower(1), lower(2), lower(3)];
+}
+
+/**
+ * Conserved Killing energy `E = -p_t` of the photon arriving along `n`.
+ *
+ * Deliberately the same shape as the spatial sum in `buildRay`: a photon
+ * arriving from `n` has `p = e_0 - n_i e_i`, so lowering that with `killingLegs`
+ * gives `E = -(e_0)_t + n_i (e_i)_t`. The shader computes this expression
+ * verbatim from `u_fp_killing`; keeping the two identical is the point.
+ *
+ * Positive means the photon fell in from the outside universe.
+ */
+export function killingEnergy(
+  legs: readonly [number, number, number, number],
+  n: Vec3,
+): number {
+  return -legs[0] + n[0] * legs[1] + n[1] * legs[2] + n[2] * legs[3];
+}
+
+/**
  * Ratio of observed to emitted frequency for light from a static source at
  * infinity, arriving along this ray.
  *

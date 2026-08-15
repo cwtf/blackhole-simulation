@@ -107,8 +107,27 @@ describe("first-person free-look", () => {
     expect(fragmentShaderSource).toContain(
       "-u_fp_e0.xyz + n.x * u_fp_e1.xyz + n.y * u_fp_e2.xyz + n.z * u_fp_e3.xyz",
     );
+    // Same sum, time index lowered. This was the contravariant e_a^t in the .w
+    // slots, which is q^t and not the photon's conserved energy: it differs by
+    // the lapse, so it was wrong by a factor that vanishes at the horizon and
+    // flips sign inside it. See killingLegs in physics/first-person.ts.
     expect(fragmentShaderSource).toContain(
+      "-u_fp_killing.x + n.x * u_fp_killing.y + n.y * u_fp_killing.z + n.z * u_fp_killing.w",
+    );
+    expect(fragmentShaderSource).not.toContain(
       "-u_fp_e0.w + n.x * u_fp_e1.w + n.y * u_fp_e2.w + n.z * u_fp_e3.w",
+    );
+  });
+
+  it("blacks out interior rays that cannot have come from the outside", () => {
+    // The conserved Killing energy is positive for every photon that fell in
+    // from region I and stays positive, so one sign test at the observer rules
+    // out an entire ray. Without it the marcher's only interior criterion is
+    // "does this reach r = 0", which nearly nothing does, and the view from
+    // inside comes out as an exterior view of a small distant hole.
+    expect(fragmentShaderSource).toContain("uniform vec4 u_fp_killing;");
+    expect(fragmentShaderSource).toContain(
+      "if (cameraInside && fpEnergy <= 0.0)",
     );
   });
 

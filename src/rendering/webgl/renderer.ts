@@ -86,6 +86,8 @@ export class WebGLRenderer {
     e1: [number, number, number, number];
     e2: [number, number, number, number];
     e3: [number, number, number, number];
+    /** The same legs with the time index lowered: `(e_a)_t`, ordered e0..e3. */
+    killing: [number, number, number, number];
     look: [number, number, number, number];
     showBody: boolean;
     /** Tidal deformation of the suit: [transverse, radial] scale factors. */
@@ -471,6 +473,13 @@ export class WebGLRenderer {
         fp.e3[3],
       );
       this.uniformBatcher.set4f(
+        "u_fp_killing",
+        fp.killing[0],
+        fp.killing[1],
+        fp.killing[2],
+        fp.killing[3],
+      );
+      this.uniformBatcher.set4f(
         "u_fp_look",
         fp.look[0],
         fp.look[1],
@@ -485,6 +494,12 @@ export class WebGLRenderer {
       this.uniformBatcher.set4f("u_fp_e1", 1.0, 0.0, 0.0, 0.0);
       this.uniformBatcher.set4f("u_fp_e2", 0.0, 1.0, 0.0, 0.0);
       this.uniformBatcher.set4f("u_fp_e3", 0.0, 0.0, 1.0, 0.0);
+      // A static observer at infinity: (e_0)_t = -1 and the spatial legs carry
+      // no time component, so any look direction contracts to E = 1. The
+      // shader only reads this when 1st person is on, but a default that
+      // silently blacked the screen out would be a bad one to leave lying
+      // around.
+      this.uniformBatcher.set4f("u_fp_killing", -1.0, 0.0, 0.0, 0.0);
       this.uniformBatcher.set4f("u_fp_look", 0.0, 0.0, 0.0, 1.0);
       this.uniformBatcher.set1f("u_fp_body", 0.0);
       // Identity, not zero: a zero scale would divide by it in suit_trace.

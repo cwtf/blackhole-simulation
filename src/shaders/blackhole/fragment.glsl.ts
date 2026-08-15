@@ -51,8 +51,11 @@ void main() {
 
     // Camera
     vec3 ro, rd;
-    // Photon energy at infinity for this ray, used to shift
-    // the sky in 1st person. 1.0 leaves the 3rd-person path untouched.
+    // Conserved Killing energy E = -p_t of the photon arriving along this
+    // pixel's ray. Two jobs, both of which need the SAME number: it shifts the
+    // sky in 1st person, and its sign decides whether an interior ray is
+    // looking at the outside universe or at the past horizon. 1.0 leaves the
+    // 3rd-person path untouched.
     float fpEnergy = 1.0;
     bool firstPerson = u_fp_enabled > 0.5;
     // The look direction in the rider's OWN frame, kept so the suit can be
@@ -97,9 +100,16 @@ void main() {
         fpLocalDir = n;
         ro = u_fp_pos;
         rd = normalize(-u_fp_e0.xyz + n.x * u_fp_e1.xyz + n.y * u_fp_e2.xyz + n.z * u_fp_e3.xyz);
-        // Contravariant q^t from the same past-directed ray. Its magnitude
-        // gives the corresponding future-directed photon's conserved energy.
-        fpEnergy = -u_fp_e0.w + n.x * u_fp_e1.w + n.y * u_fp_e2.w + n.z * u_fp_e3.w;
+        // The arriving photon's conserved energy, from the same sum with the
+        // time index lowered: p = e0 - n_i ei, so E = -p_t = -(e0)_t + n_i (ei)_t.
+        //
+        // This used to contract the contravariant e_a^t in the .w slots
+        // instead, which is q^t, not E. The two differ by the lapse — a factor
+        // that vanishes at the horizon and changes SIGN inside it, so the old
+        // expression could neither shift the sky correctly near the hole nor
+        // tell an interior ray's causal origin at all. E is a conserved
+        // quantity of the geodesic; q^t is not conserved by anything.
+        fpEnergy = -u_fp_killing.x + n.x * u_fp_killing.y + n.y * u_fp_killing.z + n.z * u_fp_killing.w;
     } else if (length(u_camPos) > 0.001) {
         ro = u_camPos;
         rd = qrot(u_camQuat, normalize(vec3(uv, 1.2)));
@@ -212,6 +222,37 @@ void main() {
     // still in the strong field and leave the rider with a black frame.
     int maxSteps = firstPerson ? 500 : int(min(float(u_maxRaySteps), 500.0));
     vec3 p_prev = p;
+
+    // Causal-structure test, interior only.
+    //
+    // Every backward-traced ray from inside the horizon climbs outward, so
+    // "does this ray reach the singularity" — the marcher's only other
+    // criterion — is nearly always no, and nearly the whole sky came out lit.
+    // That is why the interior used to render as an ordinary exterior view of
+    // a small distant hole rather than as the inside of anything.
+    //
+    // The question that actually separates sky from dark is whether the photon
+    // could have come from the outside universe, and the conserved Killing
+    // energy answers it outright: E > 0 in region I and stays positive all the
+    // way in, so a photon measured here with E <= 0 entered through the past
+    // horizon instead. In a hole formed by collapse those directions hold the
+    // frozen infalling surface of the star; here there is no star, so they are
+    // black.
+    //
+    // Because E is conserved this needs no integration — the test is exact at
+    // the observer, and the cheapest pixel in the frame is a dark one.
+    //
+    // The cone of surviving directions closes as cos(psi) < 1/beta with
+    // beta = sqrt(2M/r), so the dark region grows from the 42.1 degrees at
+    // crossing that infall-fov.test.ts pins toward a full hemisphere at the
+    // singularity. Near the crossing itself E > 0 almost everywhere and the
+    // marcher's own turning-point behaviour still supplies the shadow; this
+    // test takes over as the dominant one further in, which is exactly where
+    // the marcher had nothing to say.
+    if (cameraInside && fpEnergy <= 0.0) {
+        hitHorizon = true;
+        maxSteps = 0;
+    }
 
     // Inner Shadow Culling (Horizon-Safe, Bardeen 1973):
     // A ray with b = |cross(ro,rd)| < rh is captured in ANY Kerr geometry.
@@ -378,6 +419,11 @@ void main() {
         // E = -p_t already carrying both the observer's motion (through e0)
         // and the gravitational potential. There is deliberately no separate
         // Doppler or redshift term anywhere in this shader (§5).
+        //
+        // abs() only to keep the interior boundary finite. Past it the pixel
+        // is already black, and approaching it E -> 0 gives the divergent
+        // blueshift that puts a bright rim on the dark region -- real, and the
+        // reason the g^4 clamp below exists.
         float g = 1.0 / max(1e-4, abs(fpEnergy));
         // Colour first, in linear light, by resampling the sky's spectrum at
         // lambda * g (spec §6.2). This replaces a mix() between a warm and a

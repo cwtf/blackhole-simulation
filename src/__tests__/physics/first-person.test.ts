@@ -5,6 +5,8 @@ import {
   buildRay,
   coordinateBasis,
   frequencyShift,
+  killingEnergy,
+  killingLegs,
   lookDirection,
   orientFrame,
   rotateByQuaternion,
@@ -152,6 +154,167 @@ describe("first-person ray construction", () => {
     const frame = boostedFrame(-0.9);
     const { direction } = buildRay(frame, [1, 0, 0]);
     expect(direction[2]).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The rain observer's orthonormal frame in ingoing Kerr-Schild coordinates,
+ * equatorial, a = 0 — flattened as `e[a][mu]` with mu ordered (t, r, theta,
+ * phi), the layout `killingLegs` expects.
+ *
+ * Written out longhand rather than taken from the Rust Gram-Schmidt for the
+ * same reason `boostedFrame` is: if the code under test and the fixture shared
+ * a construction, agreeing would prove nothing. With `s = sqrt(2M/r)` the
+ * metric determinant of the (t, r) block is exactly -1, which makes the radial
+ * leg fall straight out of `e_1^mu = epsilon^{mu nu} u_nu`:
+ *
+ * ```text
+ *   u   = ((1 + s + s^2)/(1 + s),  -s,  0,    0  )
+ *   e_r = (-s/(1 + s),              1,  0,    0  )
+ * ```
+ *
+ * Both are regular at s = 1, which is the whole reason the worldline is
+ * integrated in this chart and not in Boyer-Lindquist.
+ */
+function rainFrameKS(r: number, mass: number): number[] {
+  const s = Math.sqrt((2 * mass) / r);
+  return [
+    (1 + s + s * s) / (1 + s),
+    -s,
+    0,
+    0, // e_0 = rain 4-velocity
+    -s / (1 + s),
+    1,
+    0,
+    0, // e_1 = outward radial
+    0,
+    0,
+    1 / r,
+    0, // e_2 = unit d/dtheta
+    0,
+    0,
+    0,
+    1 / r, // e_3 = unit d/dphi (equator)
+  ];
+}
+
+/** Look direction `theta` off the OUTWARD radial leg, in the e1-e2 plane. */
+function lookOffOutward(thetaDeg: number): Vec3 {
+  const t = (thetaDeg * Math.PI) / 180;
+  return [Math.cos(t), Math.sin(t), 0];
+}
+
+/**
+ * Half-angle of the dark region, measured from the inward direction, found by
+ * bisecting on the sign of the Killing energy rather than by any formula.
+ */
+function darkConeDeg(r: number, mass: number): number {
+  const legs = killingLegs(rainFrameKS(r, mass), r, Math.PI / 2, mass, 0);
+  const dark = (deg: number) =>
+    killingEnergy(legs, lookOffOutward(180 - deg)) <= 0;
+  if (!dark(0)) return 0;
+  let lo = 0;
+  let hi = 180;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (dark(mid)) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
+describe("Killing energy inside the horizon", () => {
+  const M = 1;
+  const RH = 2 * M;
+
+  it("recovers the rain observer's own conserved energy at every radius", () => {
+    // -(e_0)_t IS the observer's conserved energy, which for a fall from rest
+    // at infinity is exactly 1 — everywhere, horizon included. Nothing else in
+    // this file pins the index lowering to the metric; this does, at radii
+    // spanning four decades and on both sides of r_h.
+    for (const r of [1000, 20, 3, 2.0001, RH, 1, 0.2, 0.04, 0.001]) {
+      const legs = killingLegs(rainFrameKS(r, M), r, Math.PI / 2, M, 0);
+      expect(-legs[0]).toBeCloseTo(1, 9);
+    }
+  });
+
+  it("gives the outward leg the local infall speed", () => {
+    // The Killing vector's norm fixes this: with (e_0)_t = -1,
+    // g_tt = -(1 - 2M/r) forces (e_1)_t^2 = 2M/r.
+    for (const r of [50, 4, RH, 0.5, 0.04]) {
+      const legs = killingLegs(rainFrameKS(r, M), r, Math.PI / 2, M, 0);
+      expect(legs[1]).toBeCloseTo(Math.sqrt((2 * M) / r), 9);
+    }
+  });
+
+  it("leaves the transverse legs out of it", () => {
+    // g_ttheta and g_tphi vanish at a = 0, so looking sideways neither adds
+    // nor removes energy. If these picked up a value the dark region would
+    // stop being a circle about the radial axis.
+    const legs = killingLegs(rainFrameKS(0.5, M), 0.5, Math.PI / 2, M, 0);
+    expect(legs[2]).toBeCloseTo(0, 12);
+    expect(legs[3]).toBeCloseTo(0, 12);
+  });
+
+  it("keeps the whole sky visible outside the horizon", () => {
+    // Outside, every direction can be traced back to the exterior universe, so
+    // this test must contribute nothing there. The shader gates it on
+    // cameraInside as well; this is the belt to that pair of braces.
+    for (const r of [100, 10, 2.5, 2.0001]) {
+      const legs = killingLegs(rainFrameKS(r, M), r, Math.PI / 2, M, 0);
+      for (let deg = 0; deg <= 180; deg += 5) {
+        expect(killingEnergy(legs, lookOffOutward(deg))).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("darkens nothing at the crossing itself", () => {
+    // At r_h the energy test is exactly marginal: E = 1 + cos(theta), which
+    // touches zero only looking dead at the singularity. The 42.1 degree
+    // shadow that infall-fov.test.ts pins at this radius is the marcher's
+    // turning-point behaviour, not this test — the two do different jobs and
+    // this one must not double-count.
+    //
+    // Not exactly zero out of the bisection: the root is the endpoint of the
+    // bracket, so it converges from above rather than straddling.
+    expect(darkConeDeg(RH, M)).toBeLessThan(1e-5);
+  });
+
+  it("closes the cone as arccos(1/beta) on the way down", () => {
+    // The prediction: E = 1 + beta*cos(theta) with beta = sqrt(2M/r), so the
+    // dark region is a cone of half-angle arccos(1/beta) about the direction
+    // of the singularity. Compared against a bisection on the sign, which has
+    // never been told the formula.
+    for (const r of [1.9, 1.5, 1, 0.5, 0.2, 0.04]) {
+      const beta = Math.sqrt((2 * M) / r);
+      const expected = (Math.acos(1 / beta) * 180) / Math.PI;
+      expect(darkConeDeg(r, M)).toBeCloseTo(expected, 6);
+    }
+  });
+
+  it("grows the dark region monotonically toward a hemisphere", () => {
+    // The failure this whole change exists to prevent is a dark region that
+    // SHRINKS as the rider falls, which is what an exterior shadow does when
+    // the camera is dragged inside and nothing else changes.
+    const radii = [RH, 1.5, 1, 0.5, 0.2, 0.04, 0.004];
+    const cones = radii.map((r) => darkConeDeg(r, M));
+    for (let i = 1; i < cones.length; i++) {
+      expect(cones[i]!).toBeGreaterThan(cones[i - 1]!);
+    }
+    // Half the sky at the singularity, approached from below and never passed.
+    expect(cones[cones.length - 1]!).toBeGreaterThan(85);
+    expect(Math.max(...cones)).toBeLessThan(90);
+  });
+
+  it("puts the interior stopping radius at four tenths of the sky", () => {
+    // 0.02 r_s = 0.04 M is where worldline.rs stops an interior ride, so this
+    // is the frame the rider actually ends on: 81.9 degrees of dark cone,
+    // 43% of the sky. The screenshot that prompted this change had roughly
+    // 12 degrees, about 1%.
+    const cone = darkConeDeg(0.04 * M, M);
+    expect(cone).toBeCloseTo(81.87, 1);
+    const fraction = (1 + Math.cos(((180 - cone) * Math.PI) / 180)) / 2;
+    expect(fraction).toBeGreaterThan(0.42);
   });
 });
 
