@@ -204,6 +204,118 @@ export function killingLegs(
 }
 
 /**
+ * Covariant angular components of the four legs: `(e_a)_theta`, and
+ * `(e_a)_phi / sin(theta)`.
+ *
+ * Contracted the same way as `killingLegs`, these give the photon's two
+ * angular momenta, and `L^2 = L_theta^2 + (L_phi/sin theta)^2` — hence the
+ * pre-division, which lets the caller add two squares and be done.
+ *
+ * `L` is the second half of the interior test. The Killing energy says whether
+ * a photon *could* have come from the exterior; `b = L/E` says whether it
+ * actually made it out. Traced backwards an interior ray always climbs, but it
+ * only reaches the sky if it clears the peak of the effective potential at
+ * r = 3M, which needs `|b| < 3 sqrt(3) M`. Above that it turns around and, like
+ * a negative-energy photon, came through the past horizon.
+ *
+ * The two tests hand over to each other along the fall. At the crossing E > 0
+ * in every direction and the barrier supplies the entire 42.1 degree shadow; by
+ * r = 0.36M the energy test accounts for 93% of the sky and the barrier for 6%.
+ * Either one alone leaves a hole in the answer.
+ *
+ * Kerr-Schild rows, with `A = 2Mr/Sigma` as in `killingLegs`:
+ *
+ * ```text
+ *   g_thetatheta = Sigma, and no other theta term
+ *   g_phit = -A a sin^2(theta)
+ *   g_phir = -a sin^2(theta) (1 + A)
+ *   g_phiphi = (r^2 + a^2 + A a^2 sin^2(theta)) sin^2(theta)
+ * ```
+ *
+ * Exact at `a = 0`. At nonzero spin the true escape criterion involves Carter's
+ * constant and a critical curve that is not a circle, the same approximation
+ * the geodesic marcher already carries.
+ */
+export function angularMomentumLegs(
+  tetrad: TetradArray,
+  r: number,
+  theta: number,
+  mass: number,
+  spin: number,
+): {
+  polar: [number, number, number, number];
+  axial: [number, number, number, number];
+} {
+  const a = spin * mass;
+  const cosTheta = Math.cos(theta);
+  // Guard the axis: sin(theta) -> 0 makes g_phiphi vanish and the division
+  // below blow up, though L_phi vanishes with it. Matches the 1e-12 floor the
+  // Rust metric applies to the same quantity.
+  const sin2 = Math.max(Math.sin(theta) ** 2, 1e-12);
+  const sinTheta = Math.sqrt(sin2);
+  const sigma = r * r + a * a * cosTheta * cosTheta;
+  const A = (2 * mass * r) / sigma;
+
+  const gpt = -A * a * sin2;
+  const gpr = -a * sin2 * (1 + A);
+  const gpp = (r * r + a * a + A * a * a * sin2) * sin2;
+
+  const polarOf = (leg: number): number => sigma * (tetrad[leg * 4 + 2] ?? 0);
+  const axialOf = (leg: number): number =>
+    (gpt * (tetrad[leg * 4] ?? 0) +
+      gpr * (tetrad[leg * 4 + 1] ?? 0) +
+      gpp * (tetrad[leg * 4 + 3] ?? 0)) /
+    sinTheta;
+
+  return {
+    polar: [polarOf(0), polarOf(1), polarOf(2), polarOf(3)],
+    axial: [axialOf(0), axialOf(1), axialOf(2), axialOf(3)],
+  };
+}
+
+/**
+ * Magnitude of the photon's conserved total angular momentum along `n`.
+ *
+ * Each component contracts like the energy but with the opposite overall sign,
+ * because `L = +p_phi` where `E = -p_t`.
+ */
+export function angularMomentum(
+  legs: { polar: readonly number[]; axial: readonly number[] },
+  n: Vec3,
+): number {
+  const comp = (k: readonly number[]) =>
+    k[0]! - (n[0] * k[1]! + n[1] * k[2]! + n[2] * k[3]!);
+  const p = comp(legs.polar);
+  const a = comp(legs.axial);
+  return Math.hypot(p, a);
+}
+
+/**
+ * Critical impact parameter: `|b| = |L|/E` above this and a ray traced back out
+ * of the horizon turns around at the r = 3M barrier instead of reaching the sky.
+ *
+ * `3 sqrt(3) M` is exact for Schwarzschild. The shader uses the spin-aware
+ * `kerr_shadow_radius`, which reduces to this at `a = 0`.
+ */
+export const CRITICAL_IMPACT_PARAMETER_OVER_M = 3 * Math.sqrt(3);
+
+/**
+ * Whether an interior ray is dark: it either never touched the exterior
+ * universe, or it did not clear the barrier on the way back out.
+ *
+ * The renderer's sole authority on interior darkness. Both inputs are conserved
+ * along the geodesic, so evaluating them at the observer settles the whole ray.
+ */
+export function interiorRayIsDark(
+  energy: number,
+  absAngularMomentum: number,
+  criticalImpactParameter: number,
+): boolean {
+  if (energy <= 0) return true;
+  return absAngularMomentum > criticalImpactParameter * energy;
+}
+
+/**
  * Conserved Killing energy `E = -p_t` of the photon arriving along `n`.
  *
  * Deliberately the same shape as the spatial sum in `buildRay`: a photon

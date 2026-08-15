@@ -57,6 +57,11 @@ void main() {
     // looking at the outside universe or at the past horizon. 1.0 leaves the
     // 3rd-person path untouched.
     float fpEnergy = 1.0;
+    // Squared conserved total angular momentum L^2 of the same photon. With E
+    // it forms the impact parameter b = L/E, which decides whether a ray
+    // traced back out of the horizon clears the potential barrier at r = 3M
+    // and reaches the sky, or turns around and came from the past horizon.
+    float fpAngMomSq = 0.0;
     bool firstPerson = u_fp_enabled > 0.5;
     // The look direction in the rider's OWN frame, kept so the suit can be
     // traced in those coordinates after the geodesic march has finished. The
@@ -110,6 +115,14 @@ void main() {
         // tell an interior ray's causal origin at all. E is a conserved
         // quantity of the geodesic; q^t is not conserved by anything.
         fpEnergy = -u_fp_killing.x + n.x * u_fp_killing.y + n.y * u_fp_killing.z + n.z * u_fp_killing.w;
+        // Total angular momentum from the other two Killing contractions:
+        // L_theta = p_theta and L_phi/sin(theta), whose squares add to L^2.
+        // The sin(theta) is already divided into the axial legs on the CPU.
+        //
+        // Sign does not matter, only the magnitude, so no care is taken with it.
+        float lPolar = u_fp_amom_theta.x - (n.x * u_fp_amom_theta.y + n.y * u_fp_amom_theta.z + n.z * u_fp_amom_theta.w);
+        float lAxial = u_fp_amom_phi.x - (n.x * u_fp_amom_phi.y + n.y * u_fp_amom_phi.z + n.z * u_fp_amom_phi.w);
+        fpAngMomSq = lPolar * lPolar + lAxial * lAxial;
     } else if (length(u_camPos) > 0.001) {
         ro = u_camPos;
         rd = qrot(u_camQuat, normalize(vec3(uv, 1.2)));
@@ -220,36 +233,51 @@ void main() {
     // Interior rays need enough steps to get from the horizon to the escape
     // radius. Quality-tier budgets as low as 32 otherwise end while the ray is
     // still in the strong field and leave the rider with a black frame.
-    int maxSteps = firstPerson ? 500 : int(min(float(u_maxRaySteps), 500.0));
+    //
+    // 500 was not enough either. Inside the horizon the step size sits at
+    // MIN_STEP, because dt is driven by (r - r_h) and that is negative, and it
+    // is clamped small again crossing the photon sphere; a ray that winds once
+    // on the way out spends its whole budget doing it. Measured against a port
+    // of this loop, 500 steps left 35-38% of an interior frame unresolved --
+    // and an unresolved 1st-person ray renders BLACK, so those pixels formed a
+    // second dark region with no physics behind it, right next to the real one.
+    // 1500 converges: the unresolved fraction goes to 0.0-0.2% and does not
+    // move at 4000. The analytic test below skips the march entirely for the
+    // 23-99% of an interior frame that is dark, which pays for most of it.
+    int maxSteps = cameraInside ? 1500 : (firstPerson ? 500 : int(min(float(u_maxRaySteps), 500.0)));
     vec3 p_prev = p;
 
-    // Causal-structure test, interior only.
+    // Causal-structure test, interior only. THE sole authority on whether an
+    // interior pixel is dark -- see the note on the marcher's termination below
+    // for why nothing else is allowed a vote.
     //
-    // Every backward-traced ray from inside the horizon climbs outward, so
-    // "does this ray reach the singularity" — the marcher's only other
-    // criterion — is nearly always no, and nearly the whole sky came out lit.
-    // That is why the interior used to render as an ordinary exterior view of
-    // a small distant hole rather than as the inside of anything.
+    // Two conserved quantities settle it at the observer, with no integration:
     //
-    // The question that actually separates sky from dark is whether the photon
-    // could have come from the outside universe, and the conserved Killing
-    // energy answers it outright: E > 0 in region I and stays positive all the
-    // way in, so a photon measured here with E <= 0 entered through the past
-    // horizon instead. In a hole formed by collapse those directions hold the
-    // frozen infalling surface of the star; here there is no star, so they are
-    // black.
+    //   E <= 0        The photon's Killing energy. Positive throughout region I
+    //                 and conserved, so a photon measured in here with E <= 0
+    //                 never touched the outside universe -- it came through the
+    //                 past horizon. In a hole formed by collapse those
+    //                 directions hold the frozen surface of the infalling star;
+    //                 here there is no star, so they are black.
     //
-    // Because E is conserved this needs no integration — the test is exact at
-    // the observer, and the cheapest pixel in the frame is a dark one.
+    //   |b| > b_crit  b = L/E. Traced backwards an interior ray always climbs,
+    //                 but it only reaches the sky if it clears the peak of the
+    //                 potential at r = 3M. Above the critical impact parameter
+    //                 it turns around instead and, like the case above, came
+    //                 from the past horizon.
     //
-    // The cone of surviving directions closes as cos(psi) < 1/beta with
-    // beta = sqrt(2M/r), so the dark region grows from the 42.1 degrees at
-    // crossing that infall-fov.test.ts pins toward a full hemisphere at the
-    // singularity. Near the crossing itself E > 0 almost everywhere and the
-    // marcher's own turning-point behaviour still supplies the shadow; this
-    // test takes over as the dominant one further in, which is exactly where
-    // the marcher had nothing to say.
-    if (cameraInside && fpEnergy <= 0.0) {
+    // Neither dominates on its own. At the crossing E > 0 everywhere and the
+    // barrier supplies the whole 42.1 degree shadow that infall-fov.test.ts
+    // pins; by r = 0.36M the energy test alone accounts for 93% of the sky and
+    // the barrier for 6%. Shipping only the first left the shadow missing 15%
+    // of the frame near the crossing.
+    //
+    // b_crit is exact at a = 0 and carries the same spin approximation the rest
+    // of this shader already documents.
+    float bCrit = kerr_shadow_radius(M, a);
+    bool interiorDark = cameraInside &&
+        (fpEnergy <= 0.0 || fpAngMomSq > bCrit * bCrit * fpEnergy * fpEnergy);
+    if (interiorDark) {
         hitHorizon = true;
         maxSteps = 0;
     }
@@ -274,11 +302,20 @@ void main() {
         // Horizon check (Euclidean distance for fast rejection,
         // Kerr r is only slightly different near horizon)
         if(cameraInside) {
-            // Inside, only the singularity terminates a ray; anything that
-            // climbs back out is light that fell in with us and is still
-            // visible as the shrinking window on the outside universe.
+            // A floor, not a verdict. The analytic test above has already
+            // ruled on this pixel from the conserved quantities, and it is
+            // exact; a marched path that dives to the singularity anyway is
+            // this integrator disagreeing with them, not light being captured.
+            //
+            // It used to set hitHorizon here. That handed the interior a
+            // second, approximate dark region: with the budget raised the
+            // marcher plunges 13.6-14.7% of an interior frame near the
+            // crossing against the barrier test's 15.1-16.3%, close enough to
+            // confirm they are the same family, and 6.5% against 99% at
+            // r = 0.36M, which is not close to anything. So it breaks out --
+            // the acceleration goes as L^2/r^4 and cannot be marched through
+            // -- and leaves the ray lit, because that is what the physics said.
             if(r < rs * ${PHYSICS_CONSTANTS.rayMarching.interiorTermination.toFixed(4)}) {
-                hitHorizon = true;
                 break;
             }
         } else if(r < rh * (firstPerson ? 1.0 : ${PHYSICS_CONSTANTS.rayMarching.horizonThreshold.toFixed(2)})) {
@@ -409,9 +446,16 @@ void main() {
     vec3 background = vec3(0.0);
 #ifdef ENABLE_STARS
     // Exterior rendering retains its historical fallback at the step budget.
-    // For an interior rider, only a ray proven to have escaped may sample the
-    // outside sky; an unresolved ray must not turn into a false star field.
-    if (!firstPerson || escaped) background = sky(v);
+    // For a 1st-person rider still outside the horizon, only a ray proven to
+    // have escaped may sample the outside sky; an unresolved ray must not turn
+    // into a false star field.
+    //
+    // Inside the horizon that rule is inverted, because in there the
+    // classification is not the marcher's to make: a pixel that survived the
+    // analytic test is known to see the sky, and refusing to draw it produces
+    // exactly the false dark region the test exists to remove. So sample it,
+    // and let hitHorizon below black out the ones the test rejected.
+    if (!firstPerson || escaped || cameraInside) background = sky(v);
 
     if (firstPerson) {
         // Shift the sky by the SAME factor the ray construction produced.
@@ -431,9 +475,31 @@ void main() {
         // against a photograph an invented tint is visible.
         background = sky_shift(background, g);
         // Then Liouville: specific intensity scales as g^4, the same law the
-        // disk and jet use. Clamped so a deep plunge cannot hand the tone
-        // mapper an unbounded value.
-        background *= clamp(pow(g, 4.0), 0.0, 64.0);
+        // disk and jet use.
+        //
+        // This was clamped to 64, which is where the interior turned into a
+        // sheet of white. The clamp is not a scale problem, it is a
+        // information problem: g diverges at the dark boundary, so g^4 spans
+        // many decades across one frame, and everything past the cap collapses
+        // onto a single value. At r = 1.19M the SMALLEST boost anywhere on
+        // screen is already 16.7 and 52% of the frame sat above the cap, so
+        // half the picture was one flat number and the structure in it -- the
+        // blazing rim, the fall-off away from it -- was gone before tone
+        // mapping ever ran.
+        //
+        // A logarithmic response keeps every decade distinguishable instead of
+        // discarding the top ones. Strictly increasing, so the ordering is
+        // still physics: the rim stays the brightest thing on screen and the
+        // direction you fell from stays redshifted below unity. Identity at
+        // g = 1 by construction, so an unshifted ray is untouched and nothing
+        // outside the 1st-person path changes.
+        //
+        // FP_TONE_KNEE sets how hard the decades are squeezed, and it is a
+        // viewing choice rather than a physical constant -- the ORDER of
+        // brightnesses is the physics, the absolute level is exposure. At 100
+        // a 10^6 range in boost lands inside a factor of about 3.
+        float boost = pow(g, 4.0);
+        background *= log(1.0 + boost * FP_TONE_KNEE) / log(1.0 + FP_TONE_KNEE);
     }
 #endif
 

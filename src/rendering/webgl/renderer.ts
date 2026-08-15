@@ -88,6 +88,9 @@ export class WebGLRenderer {
     e3: [number, number, number, number];
     /** The same legs with the time index lowered: `(e_a)_t`, ordered e0..e3. */
     killing: [number, number, number, number];
+    /** Covariant angular components: `(e_a)_theta` and `(e_a)_phi/sin(theta)`. */
+    amomPolar: [number, number, number, number];
+    amomAxial: [number, number, number, number];
     look: [number, number, number, number];
     showBody: boolean;
     /** Tidal deformation of the suit: [transverse, radial] scale factors. */
@@ -480,6 +483,20 @@ export class WebGLRenderer {
         fp.killing[3],
       );
       this.uniformBatcher.set4f(
+        "u_fp_amom_theta",
+        fp.amomPolar[0],
+        fp.amomPolar[1],
+        fp.amomPolar[2],
+        fp.amomPolar[3],
+      );
+      this.uniformBatcher.set4f(
+        "u_fp_amom_phi",
+        fp.amomAxial[0],
+        fp.amomAxial[1],
+        fp.amomAxial[2],
+        fp.amomAxial[3],
+      );
+      this.uniformBatcher.set4f(
         "u_fp_look",
         fp.look[0],
         fp.look[1],
@@ -500,6 +517,12 @@ export class WebGLRenderer {
       // silently blacked the screen out would be a bad one to leave lying
       // around.
       this.uniformBatcher.set4f("u_fp_killing", -1.0, 0.0, 0.0, 0.0);
+      // Zero angular momentum: b = 0, which passes the barrier test for any
+      // b_crit. Same reasoning as the line above — the interior test never
+      // runs in 3rd person, but the default should not be one that blacks out
+      // a frame if it ever did.
+      this.uniformBatcher.set4f("u_fp_amom_theta", 0.0, 0.0, 0.0, 0.0);
+      this.uniformBatcher.set4f("u_fp_amom_phi", 0.0, 0.0, 0.0, 0.0);
       this.uniformBatcher.set4f("u_fp_look", 0.0, 0.0, 0.0, 1.0);
       this.uniformBatcher.set1f("u_fp_body", 0.0);
       // Identity, not zero: a zero scale would divide by it in suit_trace.

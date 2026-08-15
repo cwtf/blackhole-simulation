@@ -4,7 +4,11 @@ import {
   FIRST_PERSON_FOCAL_LENGTH,
   buildRay,
   coordinateBasis,
+  CRITICAL_IMPACT_PARAMETER_OVER_M,
+  angularMomentum,
+  angularMomentumLegs,
   frequencyShift,
+  interiorRayIsDark,
   killingEnergy,
   killingLegs,
   lookDirection,
@@ -315,6 +319,178 @@ describe("Killing energy inside the horizon", () => {
     expect(cone).toBeCloseTo(81.87, 1);
     const fraction = (1 + Math.cos(((180 - cone) * Math.PI) / 180)) / 2;
     expect(fraction).toBeGreaterThan(0.42);
+  });
+});
+
+describe("the barrier half of the interior test", () => {
+  const M = 1;
+  const RH = 2 * M;
+  const BC = CRITICAL_IMPACT_PARAMETER_OVER_M * M;
+
+  /** Impact parameter b = L/E for a look direction `theta` off outward. */
+  function impactParameter(r: number, thetaDeg: number): number {
+    const t = rainFrameKS(r, M);
+    const n = lookOffOutward(thetaDeg);
+    const E = killingEnergy(killingLegs(t, r, Math.PI / 2, M, 0), n);
+    return angularMomentum(angularMomentumLegs(t, r, Math.PI / 2, M, 0), n) / E;
+  }
+
+  it("matches the closed form for a rain observer", () => {
+    // b = r sin(psi) / (1 - beta cos psi) with psi the photon's propagation
+    // angle off outward, which is 180 - theta for a look direction theta.
+    // Derived from the metric; the code only ever adds up tetrad legs.
+    for (const r of [1.9, 1.5, 1, 0.4]) {
+      const beta = Math.sqrt((2 * M) / r);
+      for (const deg of [10, 40, 70, 100]) {
+        const psi = ((180 - deg) * Math.PI) / 180;
+        const expected = (r * Math.sin(psi)) / (1 - beta * Math.cos(psi));
+        expect(impactParameter(r, deg)).toBeCloseTo(expected, 6);
+      }
+    }
+  });
+
+  it("puts the crossing shadow at 42.1 degrees, where the energy test is blind", () => {
+    // The number infall-fov.test.ts pins. At r_h the energy test darkens
+    // nothing at all, so this is the whole shadow — and it used to come from
+    // the marcher, which has since been shown to supply none of it.
+    const legs = killingLegs(rainFrameKS(RH, M), RH, Math.PI / 2, M, 0);
+    const amom = angularMomentumLegs(rainFrameKS(RH, M), RH, Math.PI / 2, M, 0);
+    const dark = (deg: number) => {
+      const n = lookOffOutward(180 - deg);
+      return interiorRayIsDark(
+        killingEnergy(legs, n),
+        angularMomentum(amom, n),
+        BC,
+      );
+    };
+    let lo = 0;
+    let hi = 180;
+    for (let i = 0; i < 60; i++) {
+      const mid = (lo + hi) / 2;
+      if (dark(mid)) lo = mid;
+      else hi = mid;
+    }
+    expect(lo).toBeCloseTo(42.1, 1);
+  });
+
+  it("is exactly the b = b_crit criterion wherever the energy test abstains", () => {
+    // Where E > 0 the predicate must agree, direction by direction, with a
+    // separately computed |b| against b_crit — b_crit being the ray that
+    // asymptotes to the photon sphere rather than clearing it.
+    for (const r of [1.95, 1.6, 1.2, 0.8]) {
+      const legs = killingLegs(rainFrameKS(r, M), r, Math.PI / 2, M, 0);
+      const amom = angularMomentumLegs(rainFrameKS(r, M), r, Math.PI / 2, M, 0);
+      let checked = 0;
+      for (let deg = 0; deg <= 180; deg += 0.5) {
+        const n = lookOffOutward(deg);
+        const E = killingEnergy(legs, n);
+        if (E <= 0) continue; // the energy test owns these
+        checked++;
+        expect(
+          interiorRayIsDark(E, angularMomentum(amom, n), BC),
+          `r=${r} deg=${deg} b=${impactParameter(r, deg).toFixed(3)}`,
+        ).toBe(Math.abs(impactParameter(r, deg)) > BC);
+      }
+      expect(checked).toBeGreaterThan(50);
+    }
+  });
+
+  it("neither test alone is enough", () => {
+    // The point of carrying both. At the crossing the energy test sees
+    // nothing; deep in, the barrier test is a rounding error next to it.
+    const sweep = (r: number) => {
+      const legs = killingLegs(rainFrameKS(r, M), r, Math.PI / 2, M, 0);
+      const amom = angularMomentumLegs(rainFrameKS(r, M), r, Math.PI / 2, M, 0);
+      let byEnergy = 0;
+      let byBarrier = 0;
+      let n = 0;
+      for (let i = 0; i < 2000; i++) {
+        // Uniform in cos so this is a genuine solid-angle fraction.
+        const c = -1 + (2 * (i + 0.5)) / 2000;
+        const dir: Vec3 = [c, Math.sqrt(1 - c * c), 0];
+        const E = killingEnergy(legs, dir);
+        const L = angularMomentum(amom, dir);
+        n++;
+        if (E <= 0) byEnergy++;
+        else if (L > BC * E) byBarrier++;
+      }
+      return { energy: byEnergy / n, barrier: byBarrier / n };
+    };
+
+    const atCrossing = sweep(RH);
+    expect(atCrossing.energy).toBeCloseTo(0, 3);
+    expect(atCrossing.barrier).toBeGreaterThan(0.1);
+
+    const deep = sweep(0.04);
+    expect(deep.energy).toBeGreaterThan(0.4);
+    expect(deep.barrier).toBeLessThan(0.01);
+  });
+
+  it("never shrinks the dark region as the rider falls", () => {
+    const frac = (r: number) => {
+      const legs = killingLegs(rainFrameKS(r, M), r, Math.PI / 2, M, 0);
+      const amom = angularMomentumLegs(rainFrameKS(r, M), r, Math.PI / 2, M, 0);
+      let dark = 0;
+      for (let i = 0; i < 4000; i++) {
+        const c = -1 + (2 * (i + 0.5)) / 4000;
+        const dir: Vec3 = [c, Math.sqrt(1 - c * c), 0];
+        if (
+          interiorRayIsDark(
+            killingEnergy(legs, dir),
+            angularMomentum(amom, dir),
+            BC,
+          )
+        )
+          dark++;
+      }
+      return dark / 4000;
+    };
+    const radii = [RH, 1.6, 1.2, 0.8, 0.4, 0.1, 0.04];
+    const fracs = radii.map(frac);
+    for (let i = 1; i < fracs.length; i++) {
+      expect(fracs[i]!).toBeGreaterThan(fracs[i - 1]!);
+    }
+    // 13% at the crossing is the 42.1 degree cone; ~43% at the stop is the
+    // energy test's hemisphere.
+    expect(fracs[0]!).toBeCloseTo(0.129, 2);
+    expect(fracs[fracs.length - 1]!).toBeGreaterThan(0.42);
+  });
+});
+
+describe("first-person sky tone response", () => {
+  // The GLSL is log(1 + boost*K)/log(1 + K); mirrored here so its contract can
+  // be pinned. What broke was not the level but the flat top: clamp(g^4, 0, 64)
+  // mapped every boost above 2.83 onto one value, and at r = 1.19M the whole
+  // frame was above it.
+  const KNEE = 100;
+  const shaped = (boost: number) =>
+    Math.log(1 + boost * KNEE) / Math.log(1 + KNEE);
+
+  it("leaves an unshifted ray exactly alone", () => {
+    expect(shaped(1)).toBeCloseTo(1, 12);
+  });
+
+  it("is strictly increasing, so no two brightnesses collapse together", () => {
+    let prev = -Infinity;
+    for (let e = -3; e <= 12; e += 0.25) {
+      const v = shaped(Math.pow(10, e));
+      expect(v).toBeGreaterThan(prev);
+      prev = v;
+    }
+  });
+
+  it("keeps redshift below unity and blueshift above it", () => {
+    expect(shaped(Math.pow(0.45, 4))).toBeLessThan(1); // looking back outward
+    expect(shaped(Math.pow(2.0, 4))).toBeGreaterThan(1); // toward the rim
+  });
+
+  it("fits the range an interior frame actually spans into a few stops", () => {
+    // At r = 1.19M the boost runs from 16.7 at the frame corner to unbounded
+    // at the dark boundary. The old clamp put all of that on one number.
+    const corner = shaped(16.7);
+    const rim = shaped(1e12);
+    expect(rim / corner).toBeLessThan(6);
+    expect(rim).toBeGreaterThan(corner * 1.5);
   });
 });
 

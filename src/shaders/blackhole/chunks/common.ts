@@ -71,6 +71,18 @@ export const COMMON_CHUNK = `
   // misses the g_tr and g_tphi terms outright.
   uniform vec4 u_fp_killing;
 
+  // The other two Killing contractions, same packing: (e_a)_theta, and
+  // (e_a)_phi already divided by sin(theta) on the CPU so the shader can add
+  // their squares directly into L^2 without carrying the angle.
+  //
+  // With E these give the impact parameter b = L/E, which is what decides
+  // whether an interior ray traced backwards clears the potential barrier at
+  // r = 3M and reaches the sky. Exact at a = 0; at nonzero spin the true
+  // criterion needs Carter's constant and the D-shaped critical curve, the
+  // same approximation the geodesic marcher in metric.ts already documents.
+  uniform vec4 u_fp_amom_theta;
+  uniform vec4 u_fp_amom_phi;
+
   // The rider's own suit, drawn in the frame's local coordinates so looking
   // down shows the body it is attached to. 0 hides it. Free-look turns the
   // head, not the torso, so the suit stays put while the view swings over it.
@@ -110,6 +122,10 @@ export const COMMON_CHUNK = `
   // radius is well under a pixel for any impact parameter that still has the
   // hole in frame.
 #define ESCAPE_RADIUS ${PHYSICS_CONSTANTS.rayMarching.escapeRadius.toFixed(1)}
+  // How hard the 1st-person sky's g^4 boost is compressed. Exposure, not
+  // physics: the ordering of brightnesses is fixed by Liouville, the level
+  // that ordering is displayed at is a choice. See the note at the use site.
+#define FP_TONE_KNEE 100.0
 #define MIN_STEP ${PHYSICS_CONSTANTS.rayMarching.minStep.toFixed(2)}
 #define MAX_STEP ${PHYSICS_CONSTANTS.rayMarching.maxStep.toFixed(1)}
 

@@ -120,14 +120,42 @@ describe("first-person free-look", () => {
   });
 
   it("blacks out interior rays that cannot have come from the outside", () => {
-    // The conserved Killing energy is positive for every photon that fell in
-    // from region I and stays positive, so one sign test at the observer rules
-    // out an entire ray. Without it the marcher's only interior criterion is
-    // "does this reach r = 0", which nearly nothing does, and the view from
-    // inside comes out as an exterior view of a small distant hole.
+    // Two conserved quantities, both evaluated at the observer, both needed:
+    // E <= 0 for photons that never touched region I, and |b| > b_crit for
+    // those that did but turned back at the r = 3M barrier. At the crossing
+    // the first darkens nothing and the second is the entire shadow; deep in
+    // it is the other way round.
     expect(fragmentShaderSource).toContain("uniform vec4 u_fp_killing;");
+    expect(fragmentShaderSource).toContain("uniform vec4 u_fp_amom_theta;");
+    expect(fragmentShaderSource).toContain("uniform vec4 u_fp_amom_phi;");
     expect(fragmentShaderSource).toContain(
-      "if (cameraInside && fpEnergy <= 0.0)",
+      "(fpEnergy <= 0.0 || fpAngMomSq > bCrit * bCrit * fpEnergy * fpEnergy)",
+    );
+  });
+
+  it("lets nothing but that test darken an interior pixel", () => {
+    // The two ways the marcher used to invent a second dark region, both gone.
+    //
+    // Reaching the interior termination radius no longer sets hitHorizon: the
+    // analytic test has already ruled, and a marched path that disagrees with
+    // the conserved quantities is this integrator being approximate. And an
+    // interior ray that runs out of steps now samples the sky rather than
+    // rendering black — at 500 steps that was 35-38% of an interior frame.
+    expect(fragmentShaderSource).toContain(
+      "if (!firstPerson || escaped || cameraInside) background = sky(v);",
+    );
+    expect(fragmentShaderSource).toContain(
+      "int maxSteps = cameraInside ? 1500 :",
+    );
+  });
+
+  it("compresses the sky boost instead of clipping it flat", () => {
+    // clamp(pow(g, 4.0), 0.0, 64.0) mapped every boost above 2.83 onto one
+    // number. At r = 1.19M the smallest boost on screen is 16.7, so the whole
+    // frame was that number.
+    expect(fragmentShaderSource).not.toContain("clamp(pow(g, 4.0), 0.0, 64.0)");
+    expect(fragmentShaderSource).toContain(
+      "log(1.0 + boost * FP_TONE_KNEE) / log(1.0 + FP_TONE_KNEE)",
     );
   });
 
@@ -142,9 +170,18 @@ describe("first-person free-look", () => {
     expect(fragmentShaderSource).toContain("rh * (firstPerson ? 1.0 : 1.15)");
   });
 
-  it("requires an interior ray to escape before sampling the sky", () => {
+  it("requires a rider still outside the horizon to escape before sampling the sky", () => {
+    // Unchanged above r_h, where the marcher is the only thing that knows
+    // whether a ray got out and an unresolved one must not become a false star
+    // field.
+    //
+    // Inverted below it. In there the conserved quantities have already
+    // classified the pixel exactly, so withholding the sky from a ray that
+    // merely ran long invents a dark region rather than avoiding one — which
+    // it did, across 35-38% of an interior frame. See the interior-darkness
+    // test above.
     expect(fragmentShaderSource).toContain(
-      "if (!firstPerson || escaped) background = sky(v)",
+      "if (!firstPerson || escaped || cameraInside) background = sky(v)",
     );
   });
 });

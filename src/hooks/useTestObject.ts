@@ -11,6 +11,7 @@ import {
 } from "@/physics/apsides";
 import {
   orientFrame,
+  angularMomentumLegs,
   killingLegs,
   tetradToCartesian,
   type CartesianLeg,
@@ -117,6 +118,15 @@ export interface FirstPersonFrame {
    * `killingLegs` in `physics/first-person.ts`.
    */
   killing: [number, number, number, number];
+  /**
+   * The legs' covariant angular components, `(e_a)_theta` and
+   * `(e_a)_phi / sin(theta)`, ordered to match `e0..e3`.
+   *
+   * With `killing` these give the photon's impact parameter `b = L/E`, the
+   * other half of the interior dark test. See `angularMomentumLegs`.
+   */
+  amomPolar: [number, number, number, number];
+  amomAxial: [number, number, number, number];
   look: [number, number, number, number];
   /**
    * Draw the rider's own suit in the lower half of the frame.
@@ -605,6 +615,21 @@ export function useTestObject(
       mass,
       spin,
     );
+    const amom = angularMomentumLegs(
+      ridePoint.tetrad,
+      ridePoint.r,
+      ridePoint.theta,
+      mass,
+      spin,
+    );
+    const pick = (
+      k: [number, number, number, number],
+    ): [number, number, number, number] => [
+      k[0],
+      k[axes.right.index]! * axes.right.sign,
+      k[axes.up.index]! * axes.up.sign,
+      k[axes.forward.index]! * axes.forward.sign,
+    ];
 
     const pos = worldline.toCartesian(ridePoint);
     firstPersonFrame = {
@@ -620,12 +645,9 @@ export function useTestObject(
       e1: resolve(legs[axes.right.index]!, axes.right.sign),
       e2: resolve(legs[axes.up.index]!, axes.up.sign),
       e3: resolve(legs[axes.forward.index]!, axes.forward.sign),
-      killing: [
-        killing[0]!,
-        killing[axes.right.index]! * axes.right.sign,
-        killing[axes.up.index]! * axes.up.sign,
-        killing[axes.forward.index]! * axes.forward.sign,
-      ],
+      killing: pick(killing),
+      amomPolar: pick(amom.polar),
+      amomAxial: pick(amom.axial),
       look: quaternionFromYawPitch(look.yaw, look.pitch),
       showBody: showSuit,
       // Depends on solarMasses, not on mass: the failure radius is set by the
