@@ -19,44 +19,22 @@ import {
 import type { UseTestObject } from "@/hooks/useTestObject";
 
 /**
- * Draggable apsis handles (spec §6.3, milestone 9).
- *
- * Two grab points on the equatorial plane — the periapsis and the apoapsis —
- * with the orbit they describe drawn between them. Dragging either one
- * re-specifies the orbit; releasing integrates it.
- *
- * Three things §6.3 is specific about, and why they are the way they are:
- *
- * - **Integrate on drag *end*, not on move.** A geodesic integration is
- *   hundreds of thousands of RKF45 steps. What follows the pointer is the
- *   Newtonian ellipse, which is drawn dashed and labelled `NEWTONIAN PREVIEW`.
- *   That is not an apology: the drawn ellipse closes and the real orbit does
- *   not, so the moment the drag ends and the integrated trail replaces it, the
- *   difference *is* the relativistic precession.
- * - **Constraints are surfaced, not hidden.** Dragging one handle past the
- *   other swaps them; dragging the periapsis inside the separatrix turns the
- *   preview red and says `CAPTURE` rather than refusing to move. The verdict
- *   comes from the same Rust solver the integration will use, asked live over
- *   the worker.
- * - **The handles are in the disk plane.** A pixel therefore maps to one world
- *   point, by intersecting the shader's own camera ray with `y = 0`. Edge-on,
- *   that intersection degenerates; the drag then simply does not move, which is
- *   honest, rather than snapping the handle across the screen.
+ * Dragging changes the setup only; the panel's Launch action integrates it.
+ * The dashed Newtonian ellipse is an approximate preview, not the actual
+ * relativistic trajectory. Solver-backed capture feedback remains visible.
+ * Sliders in Advanced settings provide an alternative when the plane is edge-on.
  */
 export function ApsisHandles({
   object,
   mouse,
   zoom,
   enabled,
-  onCommit,
 }: {
   object: UseTestObject;
   mouse: { x: number; y: number };
   zoom: number;
   /** Only shown while the apsides trajectory is selected. */
   enabled: boolean;
-  /** Called on release, with the pair to integrate. */
-  onCommit: () => void;
 }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -154,7 +132,6 @@ export function ApsisHandles({
     };
     const onUp = () => {
       setDraggingApsis(null);
-      onCommit();
     };
 
     window.addEventListener("pointermove", onMove);
@@ -171,7 +148,6 @@ export function ApsisHandles({
     angleInPlane,
     setApsides,
     setDraggingApsis,
-    onCommit,
     apsides,
   ]);
 
@@ -279,7 +255,7 @@ export function ApsisHandles({
 
       <Handle
         point={periScreen}
-        label="peri"
+        label="Closest"
         radius={apsides.periapsis}
         colour={stroke}
         active={draggingApsis === "periapsis"}
@@ -287,7 +263,7 @@ export function ApsisHandles({
       />
       <Handle
         point={apoScreen}
-        label="apo"
+        label="Farthest"
         radius={apsides.apoapsis}
         colour={stroke}
         active={draggingApsis === "apoapsis"}
@@ -320,7 +296,7 @@ export function ApsisHandles({
             fontSize={7.5}
           >
             {draggingApsis
-              ? "NEWTONIAN PREVIEW — RELEASE TO INTEGRATE"
+              ? "APPROXIMATE PREVIEW — RELEASE TO PLACE"
               : "NEWTONIAN PREVIEW — THE INTEGRATED ORBIT PRECESSES"}
           </tspan>
         </text>

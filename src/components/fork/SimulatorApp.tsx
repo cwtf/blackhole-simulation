@@ -349,7 +349,9 @@ export const SimulatorApp = ({
   // §6.3: which trajectory the drop panel is on. Lifted out of the panel so
   // the drag handles, which live in their own overlay above the canvas, know
   // whether they should be on screen at all.
-  const [dropPreset, setDropPreset] = useState<DropPresetName>("circular");
+  const [editingDrop, setEditingDrop] = useState(true);
+  const [dropRadius, setDropRadius] = useState(20);
+  const [dropPreset, setDropPreset] = useState<DropPresetName>("radialFall");
 
   // §1.4: the jet default follows the mass preset — on for M87*, off for
   // Sgr A* and the stellar case — and the user can still override afterwards.
@@ -569,25 +571,36 @@ export const SimulatorApp = ({
           object={testObject}
           mouse={mouse}
           zoom={params.zoom}
+          previewRadius={
+            editingDrop &&
+            showUI &&
+            !isInfoExpanded &&
+            testObject.status !== "integrating" &&
+            (dropPreset === "radialFall" ||
+              dropPreset === "circular" ||
+              dropPreset === "eccentric")
+              ? dropRadius
+              : null
+          }
           mass={params.mass}
         />
         <ApsisHandles
           object={testObject}
           mouse={mouse}
           zoom={params.zoom}
-          enabled={dropPreset === "apsides" && showUI && !isInfoExpanded}
-          onCommit={() =>
-            testObject.drop("apsides", {
-              r0: testObject.apsides.apoapsis,
-              rPeri: testObject.apsides.periapsis,
-              argument: testObject.apsides.argument,
-              inclination: testObject.apsides.inclination,
-              ascendingNode: testObject.apsides.ascendingNode,
-              apsidalRotation: testObject.apsides.apsidalRotation,
-            })
+          enabled={
+            editingDrop &&
+            testObject.status !== "integrating" &&
+            dropPreset === "apsides" &&
+            showUI &&
+            !isInfoExpanded
           }
         />
         <TestObjectPanel
+          editing={editingDrop}
+          onEditingChange={setEditingDrop}
+          r0={dropRadius}
+          onRadiusChange={setDropRadius}
           object={testObject}
           isVisible={showUI && !isInfoExpanded}
           massPresetId={massPresetId}

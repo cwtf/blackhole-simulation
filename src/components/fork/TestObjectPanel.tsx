@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import type { DropPresetName } from "@/physics/worldline";
@@ -37,15 +37,27 @@ const PRESETS: { key: DropPresetName; label: string; hint: string }[] = [
   {
     key: "circular",
     label: "Circular orbit",
-    hint: "stable, outside the ISCO",
+    hint: "Launch sideways into a circular orbit.",
   },
-  { key: "isco", label: "ISCO knife-edge", hint: "marginally stable; plunges" },
-  { key: "eccentric", label: "Eccentric", hint: "periapsis precesses" },
-  { key: "radialFall", label: "Radial free fall", hint: "dropped from rest" },
+  {
+    key: "isco",
+    label: "Edge of stability (ISCO)",
+    hint: "Start at the edge of a stable orbit.",
+  },
+  {
+    key: "eccentric",
+    label: "Stretched orbit",
+    hint: "An elongated orbit that shifts with each lap.",
+  },
+  {
+    key: "radialFall",
+    label: "Drop straight in",
+    hint: "Release from rest and fall toward the black hole.",
+  },
   // §6.3: an addition, not a replacement — the presets stay.
   {
     key: "apsides",
-    label: "Apsides (drag)",
+    label: "Custom orbit (drag points)",
     hint: "drag the two handles on the disk plane",
   },
 ];
@@ -66,7 +78,15 @@ export function TestObjectPanel({
   onParamsChange,
   preset,
   onPresetChange,
+  r0,
+  editing,
+  onEditingChange,
+  onRadiusChange: setR0,
 }: {
+  editing: boolean;
+  onEditingChange: (editing: boolean) => void;
+  r0: number;
+  onRadiusChange: (radius: number) => void;
   object: UseTestObject;
   isVisible: boolean;
   massPresetId: string;
@@ -89,7 +109,6 @@ export function TestObjectPanel({
   preset: DropPresetName;
   onPresetChange: (preset: DropPresetName) => void;
 }) {
-  const [r0, setR0] = useState(20);
   const [isCollapsed, setIsCollapsed] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -103,6 +122,61 @@ export function TestObjectPanel({
     return () =>
       smallScreen.removeEventListener("change", applyResponsiveDefault);
   }, []);
+
+  const lastLaunch = useRef<Parameters<UseTestObject["drop"]> | null>(null);
+  const launch = useCallback(() => {
+    if (object.status === "integrating") return;
+    const options =
+      preset === "apsides"
+        ? {
+            r0: object.apsides.apoapsis,
+            rPeri: object.apsides.periapsis,
+            argument: object.apsides.argument,
+            inclination: object.apsides.inclination,
+            ascendingNode: object.apsides.ascendingNode,
+            apsidalRotation: object.apsides.apsidalRotation,
+          }
+        : { r0, tangentialFraction: preset === "eccentric" ? 0.9 : 1 };
+    lastLaunch.current = [preset, options];
+    onEditingChange(false);
+    object.drop(preset, options);
+  }, [object, preset, r0, onEditingChange]);
+  const retry = useCallback(() => {
+    if (object.status === "integrating" || !lastLaunch.current) return;
+    onEditingChange(false);
+    object.drop(...lastLaunch.current);
+  }, [object, onEditingChange]);
+  useEffect(() => {
+    if (!isVisible) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        e.defaultPrevented ||
+        e.repeat ||
+        e.ctrlKey ||
+        e.metaKey ||
+        e.altKey ||
+        target.closest?.(
+          "input, select, textarea, button, summary, [contenteditable=true], [role=dialog]",
+        )
+      )
+        return;
+      if (e.key === "Enter" && editing) {
+        e.preventDefault();
+        launch();
+      }
+      if (e.key.toLowerCase() === "r" && object.worldline) {
+        e.preventDefault();
+        retry();
+      }
+      if (e.key === "Escape" && editing) {
+        e.preventDefault();
+        onEditingChange(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isVisible, editing, launch, retry, object.worldline, onEditingChange]);
 
   if (!isVisible) return null;
 
@@ -171,7 +245,7 @@ export function TestObjectPanel({
                 : ""
           }`}
         >
-          Black hole
+          Drop object
         </h3>
         <button
           type="button"
@@ -217,56 +291,258 @@ export function TestObjectPanel({
               : ""
         }`}
       >
-        <select
-          value={selection}
-          onChange={(e) => handleSelection(e.target.value)}
-          className="mb-1 w-full rounded-sm border border-white/10 bg-black/60 px-2 py-1 font-mono text-[10px] text-white/80"
-          aria-label="Black hole"
-        >
-          <optgroup label="Generic">
-            {MASS_PRESETS.map((p) => (
-              <option key={p.id} value={`preset:${p.id}`}>
-                {p.label}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Real objects">
-            {REAL_BLACK_HOLES.map((o) => (
-              <option key={o.id} value={`real:${o.id}`}>
-                {o.name}
-              </option>
-            ))}
-          </optgroup>
-        </select>
+        {editing && (
+          <fieldset disabled={status === "integrating"}>
+            <legend className="sr-only">Object setup</legend>
+            <p className="mb-3 text-xs text-white/60">
+              Choose a behaviour, set the distance, then launch.
+            </p>
+            <div
+              className="mb-3 grid grid-cols-3 gap-1"
+              role="group"
+              aria-label="Object behaviour"
+            >
+              {(
+                [
+                  ["radialFall", "Drop straight in"],
+                  ["circular", "Orbit"],
+                  ["apsides", "Custom"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  type="button"
+                  key={key}
+                  aria-pressed={
+                    preset === key ||
+                    (key === "circular" && preset === "eccentric")
+                  }
+                  onClick={() => onPresetChange(key)}
+                  disabled={status === "integrating"}
+                  className="min-h-11 rounded border border-white/15 px-2 text-xs text-white/70 hover:bg-white/10 aria-pressed:border-cyan-300/70 aria-pressed:bg-cyan-300/15 aria-pressed:text-cyan-100 disabled:opacity-40"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mb-3 text-xs text-white/60">
+              {PRESETS.find((p) => p.key === preset)?.hint}
+            </p>
+            {preset !== "isco" && preset !== "apsides" && (
+              <>
+                <label className="mb-1 flex justify-between font-mono text-[8px] uppercase tracking-[0.15em] text-white/40">
+                  <span>Distance</span>
+                  <span className="text-white/70">{r0.toFixed(1)} M</span>
+                </label>
+                <input
+                  type="range"
+                  min={7}
+                  max={300}
+                  step={0.5}
+                  value={r0}
+                  onChange={(e) => setR0(Number(e.target.value))}
+                  className="mb-3 w-full accent-cyan-300"
+                  aria-label="Distance from black hole in units of M"
+                />
+              </>
+            )}
 
-        {realObject ? (
-          <RealObjectCard
-            object={realObject}
-            locked={realObjectLocked}
-            onRestore={onRestoreRealObject}
-          />
-        ) : (
-          <p className="mb-1 font-mono text-[8px] text-white/35">
-            {massPreset.hint}
-          </p>
+            {preset !== "isco" && preset !== "apsides" && (
+              <div className="mb-3 flex justify-between text-xs text-white/40">
+                <span>Near</span>
+                <span>Far</span>
+              </div>
+            )}
+            {preset === "apsides" && (
+              <p className="mb-3 text-xs text-cyan-100/80">
+                Drag the closest and farthest points in the scene, then launch.
+              </p>
+            )}
+            <details className="mb-3 rounded border border-white/10 p-2">
+              <summary className="cursor-pointer text-xs text-white/70">
+                Advanced settings
+              </summary>
+              <label className="mt-3 block text-xs text-white/60">
+                Orbit preset
+                <select
+                  aria-label="Drop trajectory preset"
+                  value={preset}
+                  onChange={(e) =>
+                    onPresetChange(e.target.value as DropPresetName)
+                  }
+                  className="my-2 w-full rounded bg-black p-2 text-xs text-white"
+                >
+                  {PRESETS.map((p) => (
+                    <option key={p.key} value={p.key}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {preset === "apsides" && <ApsidesSection object={object} />}
+            </details>
+          </fieldset>
+        )}
+        <div className="sticky bottom-0 z-10 mb-3 flex gap-2 border-t border-white/10 bg-black/95 py-3">
+          {editing ? (
+            <button
+              type="button"
+              onClick={launch}
+              disabled={status === "integrating"}
+              className="min-h-11 flex-1 rounded bg-cyan-200 px-3 text-sm font-semibold text-black hover:bg-cyan-100 disabled:opacity-40"
+            >
+              {status === "integrating" ? "Preparing…" : "Launch object ↵"}
+            </button>
+          ) : (
+            <>
+              {worldline && (
+                <button
+                  type="button"
+                  onClick={retry}
+                  disabled={!lastLaunch.current || status === "integrating"}
+                  className="min-h-11 rounded bg-cyan-200 px-3 text-xs text-black disabled:opacity-40"
+                >
+                  Retry · R
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={status === "integrating"}
+                onClick={() => {
+                  object.setView("third");
+                  object.setPaused(true);
+                  onEditingChange(true);
+                }}
+                className="min-h-11 flex-1 rounded border border-white/20 px-2 text-xs text-white disabled:opacity-40"
+              >
+                {status === "integrating"
+                  ? "Preparing…"
+                  : worldline
+                    ? "Edit setup"
+                    : "Place object"}
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              object.reset();
+              onEditingChange(true);
+            }}
+            disabled={!worldline}
+            className="rounded-sm border border-white/10 px-2 py-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-white/50 transition-colors hover:text-white/90 disabled:opacity-30"
+          >
+            Clear
+          </button>
+        </div>
+
+        <p className="mb-3 text-[10px] text-white/40">
+          {editing ? "Enter to launch · Esc to cancel" : "Space to pause"}
+        </p>
+        {error && (
+          <p className="mb-2 font-mono text-[8px] text-red-400/80">{error}</p>
         )}
 
-        <dl className="mb-3 space-y-0.5 font-mono text-[8px]">
-          <Row
-            label="r_s"
-            value={formatLength(schwarzschildRadiusKm(massPreset.solarMasses))}
-          />
-          <Row
-            label="ISCO period"
-            value={formatDuration(iscoPeriodSeconds(massPreset.solarMasses))}
-          />
-          <Row
-            label="disk peak T"
-            value={`${peakDiskTemperatureK(massPreset.solarMasses).toExponential(1)} K`}
-          />
-        </dl>
+        {readout && (
+          <details className="mb-3">
+            <summary className="cursor-pointer py-2 text-xs text-white/70">
+              Measurements
+            </summary>
+            <dl className="space-y-1 border-t border-white/10 pt-2 font-mono text-[9px]">
+              <Row
+                label="r"
+                value={`${readout.rOverRs.toFixed(3)} r_s · ${formatLength(readout.rKm)}`}
+              />
+              {/* Two clocks, always both: their disagreement is the physics (§1.6). */}
+              <Row
+                label="τ object"
+                value={formatDuration(readout.tauSeconds)}
+              />
+              <Row
+                label="t observer"
+                value={
+                  Number.isFinite(readout.tFarSeconds)
+                    ? formatDuration(readout.tFarSeconds)
+                    : "∞ (never seen)"
+                }
+              />
+              <Row
+                label="v local"
+                value={`${(readout.localVelocity * 100).toFixed(2)}% c`}
+              />
+              <Row
+                label="tidal / m"
+                value={`${readout.tidalG.toExponential(2)} g`}
+              />
+              <Row label="redshift" value={readout.redshift.toFixed(4)} />
+              {worldline && (
+                <Row
+                  label="E/L drift"
+                  value={`${worldline.audit.energyDrift.toExponential(1)} / ${worldline.audit.angularMomentumDrift.toExponential(1)}`}
+                />
+              )}
+            </dl>
+          </details>
+        )}
 
-        {/*
+        {worldline && <SpeedControl object={object} />}
+
+        {worldline && <ViewToggle object={object} />}
+        <details className="mt-3 border-t border-white/10 pt-2">
+          <summary className="mb-2 cursor-pointer text-xs text-white/70">
+            Black hole & appearance
+          </summary>
+          <select
+            value={selection}
+            onChange={(e) => handleSelection(e.target.value)}
+            className="mb-1 w-full rounded-sm border border-white/10 bg-black/60 px-2 py-1 font-mono text-[10px] text-white/80"
+            aria-label="Black hole"
+          >
+            <optgroup label="Generic">
+              {MASS_PRESETS.map((p) => (
+                <option key={p.id} value={`preset:${p.id}`}>
+                  {p.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Real objects">
+              {REAL_BLACK_HOLES.map((o) => (
+                <option key={o.id} value={`real:${o.id}`}>
+                  {o.name}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+
+          {realObject ? (
+            <RealObjectCard
+              object={realObject}
+              locked={realObjectLocked}
+              onRestore={onRestoreRealObject}
+            />
+          ) : (
+            <p className="mb-1 font-mono text-[8px] text-white/35">
+              {massPreset.hint}
+            </p>
+          )}
+
+          <dl className="mb-3 space-y-0.5 font-mono text-[8px]">
+            <Row
+              label="r_s"
+              value={formatLength(
+                schwarzschildRadiusKm(massPreset.solarMasses),
+              )}
+            />
+            <Row
+              label="ISCO period"
+              value={formatDuration(iscoPeriodSeconds(massPreset.solarMasses))}
+            />
+            <Row
+              label="disk peak T"
+              value={`${peakDiskTemperatureK(massPreset.solarMasses).toExponential(1)} K`}
+            />
+          </dl>
+
+          {/*
         Honesty rule (§6, "honesty over prettiness"). The row above states the
         physical peak temperature; the shader now renders that same number by
         default, so the colour on screen is the real visible-band colour of a
@@ -276,149 +552,26 @@ export function TestObjectPanel({
         orange gradient back, that is false colour and the UI has to say so
         rather than letting the readout above imply otherwise.
       */}
-        {params && (
-          <p
-            className={`mb-3 font-mono text-[8px] leading-relaxed ${
-              trueColour ? "text-white/35" : "text-amber-300/70"
-            }`}
-          >
-            {trueColour
-              ? "Physical colour: this is how a blackbody at the temperature above actually looks — almost featureless blue-white, with the visible structure coming from beaming rather than temperature."
-              : `False colour: rendering at ${params.diskTemp.toExponential(1)} K, not the ${peakDiskTemperatureK(
-                  massPreset.solarMasses,
-                ).toExponential(
-                  1,
-                )} K above. Hue is exaggerated to show the Doppler shift.`}
-          </p>
-        )}
+          {params && (
+            <p
+              className={`mb-3 font-mono text-[8px] leading-relaxed ${
+                trueColour ? "text-white/35" : "text-amber-300/70"
+              }`}
+            >
+              {trueColour
+                ? "Physical colour: this is how a blackbody at the temperature above actually looks — almost featureless blue-white, with the visible structure coming from beaming rather than temperature."
+                : `False colour: rendering at ${params.diskTemp.toExponential(1)} K, not the ${peakDiskTemperatureK(
+                    massPreset.solarMasses,
+                  ).toExponential(
+                    1,
+                  )} K above. Hue is exaggerated to show the Doppler shift.`}
+            </p>
+          )}
 
-        <h3 className="mb-2 font-mono text-[9px] uppercase tracking-[0.25em] text-white/70">
-          Test object
-        </h3>
-
-        <label className="mb-1 block font-mono text-[8px] uppercase tracking-[0.15em] text-white/40">
-          Trajectory
-        </label>
-        <select
-          value={preset}
-          onChange={(e) => onPresetChange(e.target.value as DropPresetName)}
-          className="mb-1 w-full rounded-sm border border-white/10 bg-black/60 px-2 py-1 font-mono text-[10px] text-white/80"
-          aria-label="Drop trajectory preset"
-        >
-          {PRESETS.map((p) => (
-            <option key={p.key} value={p.key}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-        <p className="mb-3 font-mono text-[8px] text-white/35">
-          {PRESETS.find((p) => p.key === preset)?.hint}
-        </p>
-
-        {preset !== "isco" && preset !== "apsides" && (
-          <>
-            <label className="mb-1 flex justify-between font-mono text-[8px] uppercase tracking-[0.15em] text-white/40">
-              <span>Start radius</span>
-              <span className="text-white/70">{r0.toFixed(1)} M</span>
-            </label>
-            <input
-              type="range"
-              min={7}
-              max={300}
-              step={0.5}
-              value={r0}
-              onChange={(e) => setR0(Number(e.target.value))}
-              className="mb-3 w-full accent-cyan-300"
-              aria-label="Start radius in units of M"
-            />
-          </>
-        )}
-
-        {preset === "apsides" && <ApsidesSection object={object} />}
-
-        <div className="mb-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() =>
-              object.drop(
-                preset,
-                preset === "apsides"
-                  ? {
-                      // §6.3: the outer handle is the launch radius and the
-                      // inner one is the requested periapsis.
-                      r0: object.apsides.apoapsis,
-                      rPeri: object.apsides.periapsis,
-                      argument: object.apsides.argument,
-                      inclination: object.apsides.inclination,
-                      ascendingNode: object.apsides.ascendingNode,
-                      apsidalRotation: object.apsides.apsidalRotation,
-                    }
-                  : {
-                      r0,
-                      tangentialFraction: preset === "eccentric" ? 0.9 : 1,
-                    },
-              )
-            }
-            disabled={status === "integrating"}
-            className="flex-1 rounded-sm border border-white/15 bg-white/5 px-2 py-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-white/80 transition-colors hover:border-white/40 hover:text-white disabled:opacity-40"
-          >
-            {status === "integrating" ? "…" : "Drop"}
-          </button>
-          <button
-            type="button"
-            onClick={object.reset}
-            disabled={!worldline}
-            className="rounded-sm border border-white/10 px-2 py-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-white/50 transition-colors hover:text-white/90 disabled:opacity-30"
-          >
-            Reset
-          </button>
-        </div>
-
-        {error && (
-          <p className="mb-2 font-mono text-[8px] text-red-400/80">{error}</p>
-        )}
-
-        {readout && (
-          <dl className="space-y-1 border-t border-white/10 pt-2 font-mono text-[9px]">
-            <Row
-              label="r"
-              value={`${readout.rOverRs.toFixed(3)} r_s · ${formatLength(readout.rKm)}`}
-            />
-            {/* Two clocks, always both: their disagreement is the physics (§1.6). */}
-            <Row label="τ object" value={formatDuration(readout.tauSeconds)} />
-            <Row
-              label="t observer"
-              value={
-                Number.isFinite(readout.tFarSeconds)
-                  ? formatDuration(readout.tFarSeconds)
-                  : "∞ (never seen)"
-              }
-            />
-            <Row
-              label="v local"
-              value={`${(readout.localVelocity * 100).toFixed(2)}% c`}
-            />
-            <Row
-              label="tidal / m"
-              value={`${readout.tidalG.toExponential(2)} g`}
-            />
-            <Row label="redshift" value={readout.redshift.toFixed(4)} />
-            {worldline && (
-              <Row
-                label="E/L drift"
-                value={`${worldline.audit.energyDrift.toExponential(1)} / ${worldline.audit.angularMomentumDrift.toExponential(1)}`}
-              />
-            )}
-          </dl>
-        )}
-
-        <SpeedControl object={object} />
-
-        <ViewToggle object={object} />
-        {params && onParamsChange && (
-          <PowerControl params={params} onChange={onParamsChange} />
-        )}
-
+          {params && onParamsChange && (
+            <PowerControl params={params} onChange={onParamsChange} />
+          )}
+        </details>
         <p className="mt-2 font-mono text-[7px] leading-relaxed text-white/30">
           Geometric units (G = c = M = 1). Physical scales — km, seconds, kelvin
           — arrive with the mass presets.
@@ -447,7 +600,7 @@ function ApsidesSection({ object }: { object: UseTestObject }) {
   return (
     <>
       <label className="mb-1 flex justify-between font-mono text-[8px] uppercase tracking-[0.15em] text-white/40">
-        <span>Periapsis</span>
+        <span>Closest approach</span>
         <span className="text-white/70">{apsides.periapsis.toFixed(1)} M</span>
       </label>
       <input
@@ -463,7 +616,7 @@ function ApsidesSection({ object }: { object: UseTestObject }) {
         aria-label="Periapsis in units of M"
       />
       <label className="mb-1 flex justify-between font-mono text-[8px] uppercase tracking-[0.15em] text-white/40">
-        <span>Apoapsis</span>
+        <span>Farthest point</span>
         <span className="text-white/70">{apsides.apoapsis.toFixed(1)} M</span>
       </label>
       <input
@@ -480,13 +633,13 @@ function ApsidesSection({ object }: { object: UseTestObject }) {
       />
 
       <AngleSlider
-        label="Apoapsis angle"
+        label="Orbit direction"
         value={apsides.argument}
         max={360}
         onChange={(argument) => setApsides({ ...apsides, argument })}
       />
       <AngleSlider
-        label="Inclination"
+        label="Tilt"
         value={apsides.inclination}
         max={85}
         onChange={(inclination) => setApsides({ ...apsides, inclination })}

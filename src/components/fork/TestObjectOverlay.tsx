@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { projectToScreen, type CameraState } from "@/physics/camera-projection";
 import type { UseTestObject } from "@/hooks/useTestObject";
@@ -26,11 +26,13 @@ export function TestObjectOverlay({
   mouse,
   zoom,
   mass,
+  previewRadius = null,
 }: {
   object: UseTestObject;
   mouse: { x: number; y: number };
   zoom: number;
   mass: number;
+  previewRadius?: number | null;
 }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
 
@@ -47,7 +49,17 @@ export function TestObjectOverlay({
   }, []);
 
   const { worldline, farTime } = object;
-  if (!worldline || worldline.count === 0 || size.width === 0) return null;
+  const preview =
+    previewRadius !== null && object.view !== "first" && size.width > 0 ? (
+      <DropPositionPreview
+        radius={previewRadius}
+        mouse={mouse}
+        zoom={zoom}
+        width={size.width}
+        height={size.height}
+      />
+    ) : null;
+  if (!worldline || worldline.count === 0 || size.width === 0) return preview;
   // In 1st person the camera *is* the object, so drawing its marker and trail
   // would be drawing the inside of the viewer's own head.
   if (object.view === "first") return null;
@@ -100,37 +112,110 @@ export function TestObjectOverlay({
   const opacity = Math.max(0.05, shift);
 
   return (
-    <svg
-      className="pointer-events-none absolute inset-0 z-20"
-      width={size.width}
-      height={size.height}
-      aria-hidden="true"
-    >
-      {trailPoints && (
-        <polyline
-          points={trailPoints}
-          fill="none"
-          stroke={`rgba(${red}, ${green}, ${blue}, 0.35)`}
-          strokeWidth={1}
-        />
-      )}
-      {marker.visible && (
-        <>
-          <circle
-            cx={marker.x}
-            cy={marker.y}
-            r={4}
-            fill={`rgba(${red}, ${green}, ${blue}, ${opacity})`}
-          />
-          <circle
-            cx={marker.x}
-            cy={marker.y}
-            r={8}
+    <>
+      {preview}
+      <svg
+        className="pointer-events-none absolute inset-0 z-20"
+        width={size.width}
+        height={size.height}
+        aria-hidden="true"
+      >
+        {trailPoints && (
+          <polyline
+            points={trailPoints}
             fill="none"
-            stroke={`rgba(${red}, ${green}, ${blue}, ${opacity * 0.4})`}
+            stroke={`rgba(${red}, ${green}, ${blue}, 0.35)`}
             strokeWidth={1}
           />
-        </>
+        )}
+        {marker.visible && (
+          <>
+            <circle
+              cx={marker.x}
+              cy={marker.y}
+              r={4}
+              fill={`rgba(${red}, ${green}, ${blue}, ${opacity})`}
+            />
+            <circle
+              cx={marker.x}
+              cy={marker.y}
+              r={8}
+              fill="none"
+              stroke={`rgba(${red}, ${green}, ${blue}, ${opacity * 0.4})`}
+              strokeWidth={1}
+            />
+          </>
+        )}
+      </svg>
+    </>
+  );
+}
+
+/** The presets start on +X at phi=0, matching the integrator. */
+export function DropPositionPreview({
+  radius,
+  mouse,
+  zoom,
+  width,
+  height,
+}: {
+  radius: number;
+  mouse: { x: number; y: number };
+  zoom: number;
+  width: number;
+  height: number;
+}) {
+  const point = projectToScreen(
+    [radius, 0, 0],
+    { mouseX: mouse.x, mouseY: mouse.y, zoom },
+    width,
+    height,
+  );
+  const onScreen =
+    point.visible &&
+    point.x > 24 &&
+    point.x < width - 24 &&
+    point.y > 24 &&
+    point.y < height - 48;
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 z-20"
+      width={width}
+      height={height}
+      role="img"
+      aria-label={`Launch position at distance ${radius.toFixed(1)} M`}
+    >
+      {onScreen ? (
+        <g>
+          <circle
+            cx={point.x}
+            cy={point.y}
+            r={12}
+            fill="rgba(103,232,249,0.12)"
+            stroke="rgb(103,232,249)"
+            strokeDasharray="3 3"
+          />
+          <circle cx={point.x} cy={point.y} r={4} fill="rgb(165,243,252)" />
+          <text
+            x={Math.max(110, Math.min(width - 110, point.x))}
+            y={point.y + 30}
+            textAnchor="middle"
+            fill="rgb(165,243,252)"
+            fontSize={12}
+          >
+            Launch position · {radius.toFixed(1)} M
+          </text>
+        </g>
+      ) : (
+        <text
+          x={width / 2}
+          y={height - 110}
+          textAnchor="middle"
+          fill="rgb(165,243,252)"
+          fontSize={12}
+        >
+          Launch position off-screen · zoom out or rotate the view
+        </text>
       )}
     </svg>
   );
