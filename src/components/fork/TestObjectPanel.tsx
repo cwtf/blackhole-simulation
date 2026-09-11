@@ -37,7 +37,7 @@ const PRESETS: { key: DropPresetName; label: string; hint: string }[] = [
   {
     key: "circular",
     label: "Circular orbit",
-    hint: "Launch sideways into a circular orbit.",
+    hint: "Circular orbit. Drag its handles to customise the shape and 3D tilt.",
   },
   {
     key: "isco",
@@ -327,6 +327,24 @@ export function TestObjectPanel({
             <p className="mb-3 text-xs text-white/60">
               {PRESETS.find((p) => p.key === preset)?.hint}
             </p>
+            {(preset === "circular" || preset === "apsides") &&
+              onParamsChange && (
+                <button
+                  type="button"
+                  className="mb-3 w-full rounded border border-cyan-300/30 py-2 text-xs text-cyan-100"
+                  onClick={() =>
+                    onParamsChange({
+                      zoom: Math.max(
+                        12,
+                        (preset === "apsides" ? object.apsides.apoapsis : r0) *
+                          2,
+                      ),
+                    })
+                  }
+                >
+                  Fit orbit in view
+                </button>
+              )}
             {preset !== "isco" && preset !== "apsides" && (
               <>
                 <label className="mb-1 flex justify-between font-mono text-[8px] uppercase tracking-[0.15em] text-white/40">
@@ -354,7 +372,8 @@ export function TestObjectPanel({
             )}
             {preset === "apsides" && (
               <p className="mb-3 text-xs text-cyan-100/80">
-                Drag the closest and farthest points in the scene, then launch.
+                Drag apoapsis / periapsis to resize. Drag the major-axis line to
+                turn the orbit. Drag A or B to tilt it in 3D, then launch.
               </p>
             )}
             <details className="mb-3 rounded border border-white/10 p-2">

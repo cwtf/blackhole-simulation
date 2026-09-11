@@ -263,3 +263,20 @@ export function clampApsis(r: number): number {
   if (!Number.isFinite(r)) return APSIS_DRAG_LIMITS.min;
   return Math.min(APSIS_DRAG_LIMITS.max, Math.max(APSIS_DRAG_LIMITS.min, r));
 }
+
+/** Minor-axis endpoints are centred on the ellipse, not on its focus. */
+export function minorAxisHandlePositions(pair: ApsisPair): {
+  a: [number, number, number];
+  b: [number, number, number];
+} {
+  const { major, minor } = orbitBasis(pair);
+  const centre = (pair.apoapsis - pair.periapsis) / 2;
+  const semiMinor = Math.sqrt(pair.apoapsis * pair.periapsis);
+  const point = (sign: number) =>
+    major.map((v, i) => v * centre + sign * semiMinor * (minor[i] ?? 0)) as [
+      number,
+      number,
+      number,
+    ];
+  return { a: point(1), b: point(-1) };
+}

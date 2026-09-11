@@ -207,8 +207,10 @@ export interface UseTestObject {
    */
   apsidesSolution: ApsidesSolution | null;
   /** True while a handle is held, which is what puts the preview on screen. */
-  draggingApsis: "periapsis" | "apoapsis" | "axis" | null;
-  setDraggingApsis: (which: "periapsis" | "apoapsis" | "axis" | null) => void;
+  draggingApsis: "periapsis" | "apoapsis" | "axis" | "a" | "b" | null;
+  setDraggingApsis: (
+    which: "periapsis" | "apoapsis" | "axis" | "a" | "b" | null,
+  ) => void;
   /**
    * Apsides the last integration actually reached, in M. Compared against the
    * request in the panel, because agreeing with the trajectory is the only
@@ -266,7 +268,7 @@ export function useTestObject(
   const [apsidesSolution, setApsidesSolution] =
     useState<ApsidesSolution | null>(null);
   const [draggingApsis, setDraggingApsis] = useState<
-    "periapsis" | "apoapsis" | "axis" | null
+    "periapsis" | "apoapsis" | "axis" | "a" | "b" | null
   >(null);
 
   const setApsides = useCallback((pair: ApsisPair) => {

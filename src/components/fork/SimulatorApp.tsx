@@ -10,6 +10,7 @@ import ErrorBoundary from "@/components/debug/ErrorBoundary";
 import { DebugHooks } from "@/components/fork/DebugHooks";
 import { TestObjectOverlay } from "@/components/fork/TestObjectOverlay";
 import { TestObjectPanel } from "@/components/fork/TestObjectPanel";
+import { DEFAULT_APSIDES } from "@/physics/apsides";
 import { ApsisHandles } from "@/components/fork/ApsisHandles";
 import { SingularityCard } from "@/components/fork/SingularityCard";
 import { TrajectoryPlayback } from "@/components/fork/TrajectoryPlayback";
@@ -585,13 +586,29 @@ export const SimulatorApp = ({
           mass={params.mass}
         />
         <ApsisHandles
-          object={testObject}
+          object={
+            dropPreset === "circular"
+              ? {
+                  ...testObject,
+                  apsides: {
+                    ...DEFAULT_APSIDES,
+                    periapsis: dropRadius,
+                    apoapsis: dropRadius,
+                  },
+                  apsidesSolution: null,
+                  setApsides: (pair) => {
+                    testObject.setApsides(pair);
+                    setDropPreset("apsides");
+                  },
+                }
+              : testObject
+          }
           mouse={mouse}
           zoom={params.zoom}
           enabled={
             editingDrop &&
             testObject.status !== "integrating" &&
-            dropPreset === "apsides" &&
+            (dropPreset === "apsides" || dropPreset === "circular") &&
             showUI &&
             !isInfoExpanded
           }

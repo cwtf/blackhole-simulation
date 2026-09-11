@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import {
   projectToScreen,
@@ -9,12 +15,14 @@ import {
 } from "@/physics/camera-projection";
 import {
   apsisHandlePositions,
+  minorAxisHandlePositions,
   clampApsis,
   eccentricity,
   newtonianEllipse,
   normalizeAngle,
   orbitBasis,
   orderApsides,
+  standardOrbitElements,
 } from "@/physics/apsides";
 import type { UseTestObject } from "@/hooks/useTestObject";
 
@@ -38,18 +46,40 @@ export function ApsisHandles({
 }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const rollDrag = useRef({ x: 0, y: 0, screenX: 0, screenY: 0 });
   const axisDrag = useRef({ pointerAngle: 0, argument: 0 });
 
   useEffect(() => {
+    let canvas: HTMLCanvasElement | null = null;
     const measure = () => {
-      const canvas = document.querySelector("canvas");
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
-      setSize({ width: rect.width, height: rect.height });
+      setSize((current) =>
+        current.width === rect.width && current.height === rect.height
+          ? current
+          : { width: rect.width, height: rect.height },
+      );
     };
-    measure();
+    const resize = new ResizeObserver(measure);
+    const findCanvas = () => {
+      const next = document.querySelector("canvas");
+      if (next === canvas) return;
+      if (canvas) resize.unobserve(canvas);
+      canvas = next;
+      if (canvas) {
+        resize.observe(canvas);
+        measure();
+      }
+    };
+    const observer = new MutationObserver(findCanvas);
+    observer.observe(document.body, { childList: true, subtree: true });
+    findCanvas();
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      resize.disconnect();
+      window.removeEventListener("resize", measure);
+    };
   }, []);
 
   const {
@@ -59,6 +89,11 @@ export function ApsisHandles({
     draggingApsis,
     setDraggingApsis,
   } = object;
+
+  useEffect(() => {
+    if ((!enabled || object.view === "first") && draggingApsis)
+      setDraggingApsis(null);
+  }, [enabled, object.view, draggingApsis, setDraggingApsis]);
 
   // Memoised because the pointer-move listener closes over it: a fresh object
   // each render would tear down and re-register the drag handlers on every
@@ -93,7 +128,11 @@ export function ApsisHandles({
     (clientX: number, clientY: number): number | null => {
       const hit = pointAt(clientX, clientY);
       if (!hit) return null;
-      const { node, transverse } = orbitBasis(apsides);
+      const { node, transverse } = orbitBasis({
+        ...apsides,
+        ...standardOrbitElements(apsides),
+        apsidalRotation: 0,
+      });
       const dot = (
         v: [number, number, number],
         basis: [number, number, number],
@@ -107,9 +146,43 @@ export function ApsisHandles({
   // 9px circle behind long before the pointer stops, and losing the drag
   // there would make the handles feel broken rather than precise.
   useEffect(() => {
-    if (!draggingApsis) return undefined;
+    if (!draggingApsis || !enabled || object.view === "first") return undefined;
 
     const onMove = (e: PointerEvent) => {
+      if (draggingApsis === "a" || draggingApsis === "b") {
+        const target = {
+          x: rollDrag.current.screenX + e.clientX - rollDrag.current.x,
+          y: rollDrag.current.screenY + e.clientY - rollDrag.current.y,
+        };
+        // Fit the projected rotation arc, including edge-on views where a
+        // ray/plane intersection would be singular. Prefer the current branch.
+        let best = apsides.apsidalRotation;
+        let score = Infinity;
+        for (let i = 0; i <= 720; i++) {
+          const angle = -Math.PI / 2 + (i * Math.PI) / 720;
+          const points = minorAxisHandlePositions({
+            ...apsides,
+            apsidalRotation: angle,
+          });
+          const point = projectToScreen(
+            points[draggingApsis],
+            cam,
+            size.width,
+            size.height,
+          );
+          if (!point.visible) continue;
+          const distance =
+            (point.x - target.x) ** 2 +
+            (point.y - target.y) ** 2 +
+            0.05 * (angle - apsides.apsidalRotation) ** 2;
+          if (distance < score) {
+            score = distance;
+            best = angle;
+          }
+        }
+        setApsides({ ...apsides, apsidalRotation: best });
+        return;
+      }
       if (draggingApsis === "axis") {
         const angle = angleInPlane(e.clientX, e.clientY);
         if (angle === null) return;
@@ -144,6 +217,10 @@ export function ApsisHandles({
     };
   }, [
     draggingApsis,
+    enabled,
+    object.view,
+    cam,
+    size,
     pointAt,
     angleInPlane,
     setApsides,
@@ -156,6 +233,9 @@ export function ApsisHandles({
   if (object.view === "first") return null;
 
   const handles = apsisHandlePositions(apsides);
+  const minorHandles = minorAxisHandlePositions(apsides);
+  const aScreen = projectToScreen(minorHandles.a, cam, size.width, size.height);
+  const bScreen = projectToScreen(minorHandles.b, cam, size.width, size.height);
   const periScreen = projectToScreen(
     handles.periapsis,
     cam,
@@ -226,9 +306,14 @@ export function ApsisHandles({
             y1={periScreen.y}
             x2={apoScreen.x}
             y2={apoScreen.y}
+            aria-label="Major axis · rotate orbit"
             stroke="transparent"
             strokeWidth={16}
-            style={{ pointerEvents: "stroke", cursor: "grab" }}
+            style={{
+              pointerEvents: "stroke",
+              cursor: "grab",
+              touchAction: "none",
+            }}
             onPointerDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -236,8 +321,13 @@ export function ApsisHandles({
               if (angle === null) return;
               axisDrag.current = {
                 pointerAngle: angle,
-                argument: apsides.argument,
+                argument: standardOrbitElements(apsides).argument,
               };
+              setApsides({
+                ...apsides,
+                ...standardOrbitElements(apsides),
+                apsidalRotation: 0,
+              });
               setDraggingApsis("axis");
             }}
           />
@@ -255,7 +345,7 @@ export function ApsisHandles({
 
       <Handle
         point={periScreen}
-        label="Closest"
+        label="Periapsis · closest"
         radius={apsides.periapsis}
         colour={stroke}
         active={draggingApsis === "periapsis"}
@@ -263,12 +353,46 @@ export function ApsisHandles({
       />
       <Handle
         point={apoScreen}
-        label="Farthest"
+        label="Apoapsis · farthest"
         radius={apsides.apoapsis}
         colour={stroke}
         active={draggingApsis === "apoapsis"}
         onGrab={() => setDraggingApsis("apoapsis")}
       />
+
+      {aScreen.visible && bScreen.visible && (
+        <line
+          x1={aScreen.x}
+          y1={aScreen.y}
+          x2={bScreen.x}
+          y2={bScreen.y}
+          stroke="rgba(216,180,254,0.6)"
+          strokeDasharray="3 5"
+        />
+      )}
+      {(
+        [
+          ["a", aScreen],
+          ["b", bScreen],
+        ] as const
+      ).map(([key, point]) => (
+        <Handle
+          key={key}
+          point={point}
+          label={key.toUpperCase() + " · tilt orbit"}
+          colour="rgb(216,180,254)"
+          active={draggingApsis === key}
+          onGrab={(event) => {
+            rollDrag.current = {
+              x: event.clientX,
+              y: event.clientY,
+              screenX: point.x,
+              screenY: point.y,
+            };
+            setDraggingApsis(key);
+          }}
+        />
+      ))}
 
       {/* The caption is NOT gated on the drag. An unlabelled dashed ellipse
           sitting next to the integrated trail is exactly the kind of thing
@@ -315,14 +439,14 @@ function Handle({
 }: {
   point: { x: number; y: number; visible: boolean };
   label: string;
-  radius: number;
+  radius?: number;
   colour: string;
   active: boolean;
-  onGrab: () => void;
+  onGrab: (event: React.PointerEvent<SVGCircleElement>) => void;
 }) {
   if (!point.visible) return null;
   return (
-    <g style={{ pointerEvents: "auto", cursor: "grab" }}>
+    <g style={{ pointerEvents: "auto", cursor: "grab", touchAction: "none" }}>
       {/* A generous invisible target: the visible ring is 7px, which is a
           hard thing to hit on a touchscreen. */}
       <circle
@@ -330,10 +454,11 @@ function Handle({
         cy={point.y}
         r={18}
         fill="transparent"
+        aria-label={label}
         onPointerDown={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          onGrab();
+          onGrab(e);
         }}
       />
       <circle
@@ -354,7 +479,8 @@ function Handle({
         fill="rgba(255,255,255,0.55)"
         pointerEvents="none"
       >
-        {label} {radius.toFixed(1)} M
+        {label}
+        {radius === undefined ? "" : ` ${radius.toFixed(1)} M`}
       </text>
     </g>
   );
